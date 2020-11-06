@@ -16,6 +16,8 @@ using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Actors.Resolvers;
 using Dalamud.Game.Internal.Libc;
 using System.Text.RegularExpressions;
+using System.Threading;
+using Dalamud.Hooking;
 
 namespace Inviter
 {
@@ -26,13 +28,23 @@ namespace Inviter
         public DalamudPluginInterface Interface { get; private set; }
         public Configuration Config { get; private set; }
 
-        private delegate void EasierProcessInviteDelegate(Int64 a1, Int64 a2, Int16 world_id, IntPtr name, char unknown);
+        private delegate IntPtr GetUIBaseDelegate();
+        private delegate IntPtr GetUIModuleDelegate(IntPtr basePtr);
+        private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, IntPtr name, Int16 world_id);
         // private delegate void EasierProcessCWInviteDelegate(Int64 a1, Int64 a2, Int16 world_id, char unknown);
         private EasierProcessInviteDelegate _EasierProcessInvite;
+        // private Hook<EasierProcessInviteDelegate> easierProcessInviteHook;
+        private GetUIModuleDelegate GetUIModule;
+        private delegate IntPtr GetMagicUIDelegate(IntPtr basePtr);
+        private IntPtr getUIModulePtr;
+        private IntPtr uiModulePtr;
+        private IntPtr uiModule;
+        private Int64 uiInvite;
         // private EasierProcessCWInviteDelegate _EasierProcessCWInvite;
 
         public void Dispose()
         {
+            // easierProcessInviteHook.Dispose();
             Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
             Interface.CommandManager.RemoveHandler("/xinvite");
             Gui?.Dispose();
@@ -44,14 +56,25 @@ namespace Inviter
             Interface = pluginInterface;
             Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Config.Initialize(pluginInterface);
-            var easierProcessInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? EB 19 48 8B 4B 08");
-            //var easierProcessCWInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 8B 7E 08 85 FF");
-            //GetUIModule = Marshal.GetDelegateForFunctionPointer<GetUIModuleDelegate>(getUIModulePtr);
+            var easierProcessInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? EB 3E 44 0F B7 83 ?? ?? ?? ??");
+            getUIModulePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
+            uiModulePtr = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
+            InitUi();
             PluginLog.Log("===== I N V I T E R =====");
             PluginLog.Log("Process Invite address {Address}", easierProcessInvitePtr);
+            PluginLog.Log("uiModule address {Address}", uiModule);
+            PluginLog.Log("uiInvite address {Address}", uiInvite);
+
+
             //Log($"CWInvite:{easierProcessCWInvitePtr}");
             //Interface.Framework.Gui.Chat.OnChatMessageRaw += Chat_OnChatMessageRaw;
             _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(easierProcessInvitePtr);
+            /*
+            easierProcessInviteHook = new Hook<EasierProcessInviteDelegate>(easierProcessInvitePtr,
+                                                                               new EasierProcessInviteDelegate(EasierProcessInviteDetour),
+                                                                               this);
+            easierProcessInviteHook.Enable();
+            */
 
             Interface.CommandManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
@@ -69,6 +92,27 @@ namespace Inviter
                 Gui.ConfigWindow.Visible = !Gui.ConfigWindow.Visible;
                 return;
             }
+        }
+        private void InitUi()
+        {
+            GetUIModule = Marshal.GetDelegateForFunctionPointer<GetUIModuleDelegate>(getUIModulePtr);
+            uiModule = GetUIModule(Marshal.ReadIntPtr(uiModulePtr));
+            if (uiModule == IntPtr.Zero)
+                throw new ApplicationException("uiModule was null");
+            IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 264;
+            Log($"step2:{step2}");
+            if (step2 == IntPtr.Zero)
+                throw new ApplicationException("step2 was null");
+            IntPtr step3 = Marshal.ReadIntPtr(step2);
+            Log($"step3:{step3}");
+            if (step3 == IntPtr.Zero)
+                throw new ApplicationException("step3 was null");
+            IntPtr step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6528;
+            Log($"step4:{step4}");
+            if (step4 == (IntPtr.Zero + 6528))
+                throw new ApplicationException("step4 was null");
+            uiInvite = Marshal.ReadInt64(step4);
+            Log($"uiInvite:{uiInvite}");
         }
 
         public void Log(string message)
@@ -119,9 +163,16 @@ namespace Inviter
             var player_bytes = Encoding.UTF8.GetBytes(player_name);
             IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
             Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
+            // Log($"Name Bytes:{BitConverter.ToString(player_bytes).Replace("-", " ")}");
             Marshal.WriteByte(player_bytes, player_bytes.Length, 0);
-            this._EasierProcessInvite(0, 0, (short)player.World.RowId, mem1, (char)1);
+            this._EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
             Marshal.FreeHGlobal(mem1);
+        }
+        public char EasierProcessInviteDetour(Int64 a1, Int64 a2, IntPtr name, Int16 world_id)
+        {
+            Log($"hook a1:{a1}");
+            Log($"hook a2:{a2}");
+            return easierProcessInviteHook.Original(a1, a2, name, world_id);
         }
     }
 }
