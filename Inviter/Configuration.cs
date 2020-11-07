@@ -20,6 +20,7 @@ namespace Inviter
         public bool RegexMatch = false;
         public bool PrintMessage = false;
         public bool PrintError = true;
+        public bool Eureka = false;
 
         public List<ushort> FilteredChannels = new List<ushort>();
 

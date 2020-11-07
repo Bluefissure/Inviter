@@ -18,6 +18,7 @@ using Dalamud.Game.Internal.Libc;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Dalamud.Hooking;
+using Dalamud.Game.Internal.Network;
 
 namespace Inviter
 {
@@ -31,21 +32,27 @@ namespace Inviter
         private delegate IntPtr GetUIBaseDelegate();
         private delegate IntPtr GetUIModuleDelegate(IntPtr basePtr);
         private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, IntPtr name, Int16 world_id);
-        // private delegate void EasierProcessCWInviteDelegate(Int64 a1, Int64 a2, Int16 world_id, char unknown);
+        private delegate char EasierProcessEurekaInviteDelegate(Int64 a1, Int64 a2);
+        private delegate char EasierProcessCIDDelegate(Int64 a1, Int64 a2);
         private EasierProcessInviteDelegate _EasierProcessInvite;
-        // private Hook<EasierProcessInviteDelegate> easierProcessInviteHook;
+        private EasierProcessEurekaInviteDelegate _EasierProcessEurekaInvite;
+        private Hook<EasierProcessEurekaInviteDelegate> easierProcessEurekaInviteHook;
+        private Hook<EasierProcessCIDDelegate> easierProcessCIDHook;
         private GetUIModuleDelegate GetUIModule;
         private delegate IntPtr GetMagicUIDelegate(IntPtr basePtr);
         private IntPtr getUIModulePtr;
         private IntPtr uiModulePtr;
         private IntPtr uiModule;
         private Int64 uiInvite;
-        // private EasierProcessCWInviteDelegate _EasierProcessCWInvite;
+        private Dictionary<string, Int64> name2CID;
 
         public void Dispose()
         {
-            // easierProcessInviteHook.Dispose();
+            //easierProcessCIDHook.Dispose();
+            //easierProcessEurekaInviteHook.Dispose();
             Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
+            Interface.Framework.Network.OnNetworkMessage -= Chat_OnNetworkMessage;
+            Interface.ClientState.TerritoryChanged -= TerritoryChanged;
             Interface.CommandManager.RemoveHandler("/xinvite");
             Gui?.Dispose();
             Interface?.Dispose();
@@ -53,10 +60,13 @@ namespace Inviter
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
+            name2CID = new Dictionary<string, long> { };
             Interface = pluginInterface;
             Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Config.Initialize(pluginInterface);
             var easierProcessInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? EB 3E 44 0F B7 83 ?? ?? ?? ??");
+            var easierProcessEurekaInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0 74 62");
+            var easierProcessCIDPtr = Interface.TargetModuleScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 08");
             getUIModulePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
             uiModulePtr = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
             InitUi();
@@ -66,15 +76,20 @@ namespace Inviter
             PluginLog.Log("uiInvite address {Address}", uiInvite);
 
 
-            //Log($"CWInvite:{easierProcessCWInvitePtr}");
+            //Log($"EurekaInvite:{easierProcessEurekaInvitePtr}");
             //Interface.Framework.Gui.Chat.OnChatMessageRaw += Chat_OnChatMessageRaw;
             _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(easierProcessInvitePtr);
+            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(easierProcessEurekaInvitePtr);
             /*
-            easierProcessInviteHook = new Hook<EasierProcessInviteDelegate>(easierProcessInvitePtr,
-                                                                               new EasierProcessInviteDelegate(EasierProcessInviteDetour),
+            easierProcessEurekaInviteHook = new Hook<EasierProcessEurekaInviteDelegate>(easierProcessEurekaInvitePtr,
+                                                                               new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
                                                                                this);
-            easierProcessInviteHook.Enable();
             */
+            //easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr,
+            //                                                                   new EasierProcessCIDDelegate(EasierProcessCIDDetour),
+            //                                                                   this);
+            //easierProcessCIDHook.Enable();
+            //easierProcessEurekaInviteHook.Enable();
 
             Interface.CommandManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
@@ -82,7 +97,25 @@ namespace Inviter
             });
             Gui = new PluginUi(this);
             Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
+            Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
+            Interface.ClientState.TerritoryChanged += TerritoryChanged;
         }
+
+        private void TerritoryChanged(object sender, ushort e)
+        {
+            List<ushort> eureka_territories = new List<ushort> { 732, 763, 795, 827, 920 };
+            if (eureka_territories.IndexOf(e) != -1)
+            {
+                Config.Eureka = true;
+                Config.Save();
+            }
+            else
+            {
+                Config.Eureka = false;
+                Config.Save();
+            }
+        }
+
         public void CommandHandler(string command, string arguments)
         {
             var args = arguments.Trim().Replace("\"", string.Empty);
@@ -91,6 +124,18 @@ namespace Inviter
             {
                 Gui.ConfigWindow.Visible = !Gui.ConfigWindow.Visible;
                 return;
+            }
+            else if (args == "on")
+            {
+                Config.Enable = true;
+                Interface.Framework.Gui.Chat.Print($"Auto invite is turned on for \"{Config.TextPattern}\"");
+                Config.Save();
+            }
+            else if (args == "off")
+            {
+                Config.Enable = false;
+                Interface.Framework.Gui.Chat.Print($"Auto invite is turned off");
+                Config.Save();
             }
         }
         private void InitUi()
@@ -129,6 +174,40 @@ namespace Inviter
             PluginLog.LogError(msg);
             Interface.Framework.Gui.Chat.PrintError(msg);
         }
+        private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
+        {
+            if (direction != NetworkMessageDirection.ZoneDown)
+                return;
+            var client = Interface.ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
+            //https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs.cs
+            //https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs_cn.cs
+            ushort chat_opcode = (ushort)(client == "cn" ? 0x0106 : 0x0131); 
+            if (opCode != chat_opcode)
+                return;
+            Int64 CID = Marshal.ReadInt64(dataPtr);
+            short world_id = Marshal.ReadInt16(dataPtr, 12);
+            string name = StringFromNativeUtf8(dataPtr + 16);
+            Log($"{name}@{world_id}:{CID}");
+            name2CID.Add($"{name}@{world_id}", CID);
+        }
+        public static IntPtr NativeUtf8FromString(string managedString)
+        {
+            int len = Encoding.UTF8.GetByteCount(managedString);
+            byte[] buffer = new byte[len + 1];
+            Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
+            IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+            Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
+            return nativeUtf8;
+        }
+
+        public static string StringFromNativeUtf8(IntPtr nativeUtf8)
+        {
+            int len = 0;
+            while (Marshal.ReadByte(nativeUtf8, len) != 0) ++len;
+            byte[] buffer = new byte[len];
+            Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
+            return Encoding.UTF8.GetString(buffer);
+        }
         private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
@@ -150,7 +229,20 @@ namespace Inviter
                 var senderPayload = sender.Payloads.Where(payload => payload is PlayerPayload).First();
                 if (senderPayload != null && senderPayload is PlayerPayload playerPayload)
                 {
-                    ProcessInvite(playerPayload);
+                    if (Config.Eureka)
+                    {
+                        Task.Run(() =>
+                        {
+                            ProcessEurekaInvite(playerPayload);
+                        });
+                    }
+                    else
+                    {
+                        Task.Run(() =>
+                        {
+                            ProcessInvite(playerPayload);
+                        });
+                    }
                 }
             }
 
@@ -161,18 +253,44 @@ namespace Inviter
             Log($"Invite:{player.PlayerName}@{player.World.Name}");
             string player_name = player.PlayerName;
             var player_bytes = Encoding.UTF8.GetBytes(player_name);
-            IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
-            Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
+            GCHandle pinnedArray = GCHandle.Alloc(player_bytes, GCHandleType.Pinned);
+            IntPtr pointer = pinnedArray.AddrOfPinnedObject();
+            //IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
+            //Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
             // Log($"Name Bytes:{BitConverter.ToString(player_bytes).Replace("-", " ")}");
             Marshal.WriteByte(player_bytes, player_bytes.Length, 0);
-            this._EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
-            Marshal.FreeHGlobal(mem1);
+            _EasierProcessInvite(uiInvite, 0, pointer, (short)player.World.RowId);
+            Thread.Sleep(1000);
+            pinnedArray.Free();
+            //Marshal.FreeHGlobal(mem1);
         }
-        public char EasierProcessInviteDetour(Int64 a1, Int64 a2, IntPtr name, Int16 world_id)
+
+        public void ProcessEurekaInvite(PlayerPayload player)
         {
-            Log($"hook a1:{a1}");
-            Log($"hook a2:{a2}");
-            return easierProcessInviteHook.Original(a1, a2, name, world_id);
+            Thread.Sleep(500);
+            string playerNameKey = $"{player.PlayerName}@{player.World.RowId}";
+            if (!name2CID.ContainsKey(playerNameKey))
+            {
+                LogError($"Unable to get CID:{player.PlayerName}@{player.World.Name}");
+                return;
+            }
+            Log($"Invite in Eureka:{player.PlayerName}@{player.World.Name}");
+            Int64 CID = name2CID[playerNameKey];
+            _EasierProcessEurekaInvite(uiInvite, CID);
         }
+        /*
+        public char EasierProcessCIDDetour(Int64 a1, Int64 a2)
+        {
+            Log($"CID hook a1:{a1}");
+            Log($"CID hook a2:{a2}");
+            return easierProcessCIDHook.Original(a1, a2);
+        }
+        public char EasierProcessEurekaInviteDetour(Int64 a1, Int64 a2)
+        {
+            Log($"EurekaInvite hook a1:{a1}");
+            Log($"EurekaInvite hook a2:{a2}");
+            return easierProcessEurekaInviteHook.Original(a1, a2);
+        }
+        */
     }
 }

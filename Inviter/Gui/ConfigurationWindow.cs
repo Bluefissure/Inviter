@@ -64,6 +64,8 @@ namespace Inviter.Gui
             ImGui.SameLine();
             if (ImGui.Checkbox("##hideTooltipsOnOff", ref Config.ShowTooltips)) Config.Save();
 
+            if (ImGui.Checkbox(_localizer.Localize("Eureka"), ref Config.Eureka)) Config.Save();
+
             ImGui.TextUnformatted(_localizer.Localize("Language:"));
             if (Plugin.Config.ShowTooltips && ImGui.IsItemHovered())
                 ImGui.SetTooltip(_localizer.Localize("Change the UI Language."));

@@ -31,6 +31,8 @@ namespace Inviter.Gui
             zh.Add("Enable", "启用");
             zh.Add("Tooltips", "选项说明");
             zh.Add("Call /coord to retrieval map links", "使用 /coord 命令标记地图");
+            zh.Add("Change the UI Language.", "更改UI语言");
+            zh.Add("Eureka", "优雷卡");
             zh.Add("Call /tp to teleport to the nearest aetheryte", "使用 /tp 命令进行传送");
             zh.Add("Language:", "语言");
             zh.Add("Print Debug Message", "打印调试消息");
