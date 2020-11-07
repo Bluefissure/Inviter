@@ -114,6 +114,7 @@ namespace Inviter
                 Config.Eureka = false;
                 Config.Save();
             }
+            name2CID.Clear();
         }
 
         public void CommandHandler(string command, string arguments)
@@ -211,7 +212,7 @@ namespace Inviter
         private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
-            if (Interface.ClientState.PartyList.Length >= 8) return;
+            //if (Interface.ClientState.PartyList.Length >= 8) return;
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
             var pattern = Config.TextPattern;
             bool matched = false;
@@ -253,21 +254,17 @@ namespace Inviter
             Log($"Invite:{player.PlayerName}@{player.World.Name}");
             string player_name = player.PlayerName;
             var player_bytes = Encoding.UTF8.GetBytes(player_name);
-            GCHandle pinnedArray = GCHandle.Alloc(player_bytes, GCHandleType.Pinned);
-            IntPtr pointer = pinnedArray.AddrOfPinnedObject();
-            //IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
-            //Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
-            // Log($"Name Bytes:{BitConverter.ToString(player_bytes).Replace("-", " ")}");
-            Marshal.WriteByte(player_bytes, player_bytes.Length, 0);
-            _EasierProcessInvite(uiInvite, 0, pointer, (short)player.World.RowId);
-            Thread.Sleep(1000);
-            pinnedArray.Free();
-            //Marshal.FreeHGlobal(mem1);
+            IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
+            Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
+            Marshal.WriteByte(mem1, player_bytes.Length, 0);
+            _EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
+            //Thread.Sleep(1000);
+            Marshal.FreeHGlobal(mem1);
         }
 
         public void ProcessEurekaInvite(PlayerPayload player)
         {
-            Thread.Sleep(500);
+            Thread.Sleep(500); // sleep to make sure the name2CID is updated
             string playerNameKey = $"{player.PlayerName}@{player.World.RowId}";
             if (!name2CID.ContainsKey(playerNameKey))
             {
