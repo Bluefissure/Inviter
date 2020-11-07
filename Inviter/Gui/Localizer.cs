@@ -30,11 +30,11 @@ namespace Inviter.Gui
             zh.Add("General Settings", "通用设置");
             zh.Add("Enable", "启用");
             zh.Add("Tooltips", "选项说明");
-            zh.Add("Call /coord to retrieval map links", "使用 /coord 命令标记地图");
             zh.Add("Change the UI Language.", "更改UI语言");
             zh.Add("Eureka", "优雷卡");
-            zh.Add("Call /tp to teleport to the nearest aetheryte", "使用 /tp 命令进行传送");
-            zh.Add("Language:", "语言");
+            zh.Add("Delay(ms):", "延时(毫秒)：");
+            zh.Add("Delay the invitation after triggered.", "触发后延迟邀请。");
+            zh.Add("Language:", "语言：");
             zh.Add("Print Debug Message", "打印调试消息");
             zh.Add("Print Error Message", "打印错误消息");
             zh.Add("Filters", "过滤设置");
@@ -73,7 +73,7 @@ namespace Inviter.Gui
             zh.Add("CrossLinkShell7", "跨服通讯贝7");
             zh.Add("CrossLinkShell8", "跨服通讯贝8");
             zh.Add("Echo", "默语");
-            zh.Add("Automatically invite people to your party (doesn't work for CWLS/Eureka/Bozjan).", "自动邀请人们参与组队（不适用于跨服通讯贝/尤雷卡/博兹雅）。");
+            zh.Add("Automatically invite people to your party (doesn't work for CWLS).", "自动邀请人们参与组队（不适用于跨服通讯贝）。");
             zh.Add("Pattern of the chat message to trigger the invitation.", "触发邀请的聊天消息的模式串。");
             zh.Add("Use regex to match the pattern to chat messages.", "使用正则表达式匹配聊天消息。");
             zh.Add("Pattern:", "模式：");

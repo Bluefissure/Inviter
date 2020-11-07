@@ -21,6 +21,7 @@ namespace Inviter
         public bool PrintMessage = false;
         public bool PrintError = true;
         public bool Eureka = false;
+        public int Delay = 200;
 
         public List<ushort> FilteredChannels = new List<ushort>();
 

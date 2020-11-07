@@ -251,6 +251,8 @@ namespace Inviter
 
         public void ProcessInvite(PlayerPayload player)
         {
+            int delay = Math.Max(0, Config.Delay);
+            Thread.Sleep(delay);
             Log($"Invite:{player.PlayerName}@{player.World.Name}");
             string player_name = player.PlayerName;
             var player_bytes = Encoding.UTF8.GetBytes(player_name);
@@ -258,13 +260,13 @@ namespace Inviter
             Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
             Marshal.WriteByte(mem1, player_bytes.Length, 0);
             _EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
-            //Thread.Sleep(1000);
             Marshal.FreeHGlobal(mem1);
         }
 
         public void ProcessEurekaInvite(PlayerPayload player)
         {
-            Thread.Sleep(500); // sleep to make sure the name2CID is updated
+            int delay = Math.Max(500, Config.Delay); // 500ms to make sure the name2CID is updated
+            Thread.Sleep(delay);
             string playerNameKey = $"{player.PlayerName}@{player.World.RowId}";
             if (!name2CID.ContainsKey(playerNameKey))
             {

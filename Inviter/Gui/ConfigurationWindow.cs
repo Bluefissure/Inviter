@@ -57,14 +57,12 @@ namespace Inviter.Gui
         {
             if (ImGui.Checkbox(_localizer.Localize("Enable"), ref Config.Enable)) Config.Save();
             if (Config.ShowTooltips && ImGui.IsItemHovered())
-                ImGui.SetTooltip(_localizer.Localize("Automatically invite people to your party (doesn't work for CWLS/Eureka/Bozjan)."));
+                ImGui.SetTooltip(_localizer.Localize("Automatically invite people to your party (doesn't work for CWLS)."));
             ImGui.SameLine(ImGui.GetColumnWidth() - 120);
             ImGui.TextUnformatted(_localizer.Localize("Tooltips"));
             ImGui.AlignTextToFramePadding();
             ImGui.SameLine();
             if (ImGui.Checkbox("##hideTooltipsOnOff", ref Config.ShowTooltips)) Config.Save();
-
-            if (ImGui.Checkbox(_localizer.Localize("Eureka"), ref Config.Eureka)) Config.Save();
 
             ImGui.TextUnformatted(_localizer.Localize("Language:"));
             if (Plugin.Config.ShowTooltips && ImGui.IsItemHovered())
@@ -82,6 +80,8 @@ namespace Inviter.Gui
                 Config.Save();
             }
 
+            if (ImGui.Checkbox(_localizer.Localize("Eureka"), ref Config.Eureka)) Config.Save();
+
             ImGui.TextUnformatted(_localizer.Localize("Pattern:"));
             if (Plugin.Config.ShowTooltips && ImGui.IsItemHovered())
                 ImGui.SetTooltip(_localizer.Localize("Pattern of the chat message to trigger the invitation."));
@@ -94,6 +94,12 @@ namespace Inviter.Gui
             if (ImGui.Checkbox("##regexMatch", ref Config.RegexMatch)) Config.Save();
             if (Config.ShowTooltips && ImGui.IsItemHovered())
                 ImGui.SetTooltip(_localizer.Localize("Use regex to match the pattern to chat messages."));
+
+            ImGui.TextUnformatted(_localizer.Localize("Delay(ms):"));
+            if (Plugin.Config.ShowTooltips && ImGui.IsItemHovered())
+                ImGui.SetTooltip(_localizer.Localize("Delay the invitation after triggered."));
+            ImGui.SetNextItemWidth(150);
+            if (ImGui.InputInt("##Delay", ref Config.Delay, 10, 100)) Config.Save();
 
             if (ImGui.Checkbox(_localizer.Localize("Print Debug Message"), ref Config.PrintMessage)) Config.Save();
             if (ImGui.Checkbox(_localizer.Localize("Print Error Message"), ref Config.PrintError)) Config.Save();
