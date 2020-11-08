@@ -180,9 +180,10 @@ namespace Inviter
             if (direction != NetworkMessageDirection.ZoneDown)
                 return;
             var client = Interface.ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
-            //https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs.cs
-            //https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs_cn.cs
-            ushort chat_opcode = (ushort)(client == "cn" ? 0x0106 : 0x0131); 
+            // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs.cs
+            // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs_cn.cs
+            // if not found, it'll be triggered when chatting and the length should be 1104.
+            ushort chat_opcode = (ushort)(client == "cn" ? 0x0106 : 0x0349); 
             if (opCode != chat_opcode)
                 return;
             Int64 CID = Marshal.ReadInt64(dataPtr);
