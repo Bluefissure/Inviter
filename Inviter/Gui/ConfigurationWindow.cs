@@ -28,7 +28,7 @@ namespace Inviter.Gui
 
         public ConfigurationWindow(Inviter plugin) : base(plugin)
         {
-            _languageList = new string[] { "en", "zh" };
+            _languageList = new string[] { "en", "zh", "fr" };
             _localizer = new Localizer(Config.UILanguage);
         }
 
@@ -72,10 +72,13 @@ namespace Inviter.Gui
             if (ImGui.Combo("##hideLangSetting", ref _selectedLanguage, _languageList, _languageList.Length))
             {
                 Config.UILanguage = _languageList[_selectedLanguage];
-                if (Config.UILanguage == "en")
-                    Config.TextPattern = "inv";
-                if (Config.UILanguage == "zh")
-                    Config.TextPattern = "111";
+                if(Config.TextPattern == "111" || Config.TextPattern == "inv")
+                {
+                    if (Config.UILanguage == "zh")
+                        Config.TextPattern = "111";
+                    else
+                        Config.TextPattern = "inv";
+                }
                 _localizer.Language = Config.UILanguage;
                 Config.Save();
             }

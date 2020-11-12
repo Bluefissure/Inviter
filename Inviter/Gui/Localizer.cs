@@ -11,15 +11,18 @@ namespace Inviter.Gui
     {
         public string Language = "en";
         private Dictionary<string, string> zh = new Dictionary<string, string> { };
+        private Dictionary<string, string> fr = new Dictionary<string, string> { };
         public Localizer(string language = "en")
         {
             Language = language;
             LoadZh();
+            LoadFr();
         }
         public string Localize(string message)
         {
             if (message == null) return message;
             if (Language == "zh") return zh.ContainsKey(message) ? zh[message] : message;
+            if (Language == "fr") return fr.ContainsKey(message) ? fr[message] : message;
             return message;
         }
         private void LoadZh()
@@ -51,7 +54,6 @@ namespace Inviter.Gui
             zh.Add("Party", "小队");
             zh.Add("Alliance", "团队");
             zh.Add("FreeCompany", "部队");
-            zh.Add("Free", "团队");
             zh.Add("Ls1", "通讯贝1");
             zh.Add("Ls2", "通讯贝2");
             zh.Add("Ls3", "通讯贝3");
@@ -87,6 +89,71 @@ namespace Inviter.Gui
             zh.Add("Tele", "传送");
             zh.Add("Del", "删除");
             zh.Add("Clear", "清空");
+        }
+        private void LoadFr()
+        {
+            fr.Add("Panel", "Config");
+            fr.Add("TabBar", "TabBar");
+            fr.Add("Settings", "Paramètres");
+            fr.Add("General Settings", "Paramètres Généraux");
+            fr.Add("Enable", "Activer");
+            fr.Add("Tooltips", "Infobulle");
+            fr.Add("Change the UI Language.", "Changer la langue de l'interface.");
+            fr.Add("Eureka", "Eureka");
+            fr.Add("Delay(ms):", "Délais (ms):");
+            fr.Add("Delay the invitation after triggered.", "Delai de l'invitation après déclenchement.。");
+            fr.Add("Language:", "Langage:");
+            fr.Add("Print Debug Message", "Imprimer les messages de débuggage.");
+            fr.Add("Print Error Message", "Imprimer les messages d'erreur.");
+            fr.Add("Filters", "Filtres");
+            fr.Add("Regex", "Regex");
+            fr.Add("Filter out duplicates", "Filtrer les doublons");
+            fr.Add("FiltersTable", "FiltersTable");
+            fr.Add("Debug", "Débug");
+            fr.Add("Urgent", "Urgent");
+            fr.Add("Notice", "Avis");
+            fr.Add("Say", "Dire");
+            fr.Add("Shout", "Hurler");
+            fr.Add("TellOutgoing", "Murmure Sortant");
+            fr.Add("TellIncoming", "Murmure Entrant");
+            fr.Add("Party", "Équipe");
+            fr.Add("Alliance", "Alliance");
+            fr.Add("FreeCompany", "Compagnie Libre");
+            fr.Add("Ls1", "Ls1");
+            fr.Add("Ls2", "Ls2");
+            fr.Add("Ls3", "Ls3");
+            fr.Add("Ls4", "Ls4");
+            fr.Add("Ls5", "Ls5");
+            fr.Add("Ls6", "Ls6");
+            fr.Add("Ls7", "Ls7");
+            fr.Add("Ls8", "Ls8");
+            fr.Add("Yell", "Crier");
+            fr.Add("CrossParty", "Inter-Monde");
+            fr.Add("PvPTeam", "Équipe JcJ");
+            fr.Add("NoviceNetwork", "Réseau des Novices");
+            fr.Add("CrossLinkShell1", "Linkshell Inter-Monde1");
+            fr.Add("CrossLinkShell2", "Linkshell Inter-Monde2");
+            fr.Add("CrossLinkShell3", "Linkshell Inter-Monde3");
+            fr.Add("CrossLinkShell4", "Linkshell Inter-Monde4");
+            fr.Add("CrossLinkShell5", "Linkshell Inter-Monde5");
+            fr.Add("CrossLinkShell6", "Linkshell Inter-Monde6");
+            fr.Add("CrossLinkShell7", "Linkshell Inter-Monde7");
+            fr.Add("CrossLinkShell8", "Linkshell Inter-Monde8");
+            fr.Add("Echo", "Écho");
+            fr.Add("Automatically invite people to your party (doesn't work for CWLS).", "Inviter automatiquement les personnes dans votre groupe (ne fonctionne pas pour les LS inter-mondes.");
+            fr.Add("Pattern of the chat message to trigger the invitation.", "Pattern du message qui déclenche l'invitation.");
+            fr.Add("Use regex to match the pattern to chat messages.", "Utiliser une regex pour identifier les messages.");
+            fr.Add("Pattern:", "Pattern:");
+            fr.Add("Sender", "Envoyeur");
+            fr.Add("Message", "Message");
+            fr.Add("Time", "Heure");
+            fr.Add("Retrieve", "Récupérer");
+            fr.Add("Teleport", "Téléporter");
+            fr.Add("Delete", "Supprimer");
+            fr.Add("View", "Inspected");
+            fr.Add("Tele", "Télé");
+            fr.Add("Del", "Del");
+            fr.Add("Clear", "Nettoyer");
         }
     }
 }

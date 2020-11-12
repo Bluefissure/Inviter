@@ -213,7 +213,7 @@ namespace Inviter
         private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
-            //if (Interface.ClientState.PartyList.Length >= 8) return;
+            if (Interface.ClientState.PartyList?.Count >= 8) return; // The party list is null for now
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
             var pattern = Config.TextPattern;
             bool matched = false;
