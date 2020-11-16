@@ -23,7 +23,15 @@ namespace Inviter.Gui
             XivChatType.SystemError,
             XivChatType.GatheringSystemMessage,
             XivChatType.ErrorMessage,
-            XivChatType.RetainerSale
+            XivChatType.RetainerSale,
+            XivChatType.CrossLinkShell1,
+            XivChatType.CrossLinkShell2,
+            XivChatType.CrossLinkShell3,
+            XivChatType.CrossLinkShell4,
+            XivChatType.CrossLinkShell5,
+            XivChatType.CrossLinkShell6,
+            XivChatType.CrossLinkShell7,
+            XivChatType.CrossLinkShell8
         };
 
         public ConfigurationWindow(Inviter plugin) : base(plugin)
