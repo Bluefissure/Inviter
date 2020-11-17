@@ -190,7 +190,11 @@ namespace Inviter
             short world_id = Marshal.ReadInt16(dataPtr, 12);
             string name = StringFromNativeUtf8(dataPtr + 16);
             Log($"{name}@{world_id}:{CID}");
-            name2CID.Add($"{name}@{world_id}", CID);
+            string playerNameKey = $"{name}@{world_id}";
+            if (!name2CID.ContainsKey(playerNameKey))
+            {
+                name2CID.Add(playerNameKey, CID);
+            }
         }
         public static IntPtr NativeUtf8FromString(string managedString)
         {
