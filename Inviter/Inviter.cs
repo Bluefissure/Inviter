@@ -177,6 +177,7 @@ namespace Inviter
         }
         private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
         {
+            if (!Config.Eureka) return;
             if (direction != NetworkMessageDirection.ZoneDown)
                 return;
             var client = Interface.ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
