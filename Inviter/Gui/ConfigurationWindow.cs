@@ -15,24 +15,7 @@ namespace Inviter.Gui
         private int _selectedLanguage;
         private Localizer _localizer;
 
-        public List<XivChatType> HiddenChatType = new List<XivChatType> {
-            XivChatType.None,
-            XivChatType.CustomEmote,
-            XivChatType.StandardEmote,
-            XivChatType.SystemMessage,
-            XivChatType.SystemError,
-            XivChatType.GatheringSystemMessage,
-            XivChatType.ErrorMessage,
-            XivChatType.RetainerSale,
-            XivChatType.CrossLinkShell1,
-            XivChatType.CrossLinkShell2,
-            XivChatType.CrossLinkShell3,
-            XivChatType.CrossLinkShell4,
-            XivChatType.CrossLinkShell5,
-            XivChatType.CrossLinkShell6,
-            XivChatType.CrossLinkShell7,
-            XivChatType.CrossLinkShell8
-        };
+        
 
         public ConfigurationWindow(Inviter plugin) : base(plugin)
         {
@@ -122,7 +105,7 @@ namespace Inviter.Gui
             ImGui.Columns(4, "FiltersTable", true);
             foreach (ushort chatType in Enum.GetValues(typeof(XivChatType)))
             {
-                if (HiddenChatType.IndexOf((XivChatType)chatType) != -1) continue;
+                if (Config.HiddenChatType.IndexOf((XivChatType)chatType) != -1) continue;
                 string chatTypeName = Enum.GetName(typeof(XivChatType), chatType);
                 bool checkboxClicked = Config.FilteredChannels.IndexOf(chatType) == -1;
                 if (ImGui.Checkbox(_localizer.Localize(chatTypeName) + "##filter", ref checkboxClicked))

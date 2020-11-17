@@ -24,6 +24,24 @@ namespace Inviter
         public int Delay = 200;
 
         public List<ushort> FilteredChannels = new List<ushort>();
+        public List<XivChatType> HiddenChatType = new List<XivChatType> {
+            XivChatType.None,
+            XivChatType.CustomEmote,
+            XivChatType.StandardEmote,
+            XivChatType.SystemMessage,
+            XivChatType.SystemError,
+            XivChatType.GatheringSystemMessage,
+            XivChatType.ErrorMessage,
+            XivChatType.RetainerSale,
+            XivChatType.CrossLinkShell1,
+            XivChatType.CrossLinkShell2,
+            XivChatType.CrossLinkShell3,
+            XivChatType.CrossLinkShell4,
+            XivChatType.CrossLinkShell5,
+            XivChatType.CrossLinkShell6,
+            XivChatType.CrossLinkShell7,
+            XivChatType.CrossLinkShell8
+        };
 
 
         #region Init and Save

@@ -215,6 +215,7 @@ namespace Inviter
             if (!Config.Enable) return;
             if (Interface.ClientState.PartyList?.Count >= 8) return; // The party list is null for now
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
+            if (Config.HiddenChatType.IndexOf(type) != -1) return;
             var pattern = Config.TextPattern;
             bool matched = false;
             if (!Config.RegexMatch)
@@ -228,8 +229,8 @@ namespace Inviter
             }
             if (matched)
             {
-                var senderPayload = sender.Payloads.Where(payload => payload is PlayerPayload).First();
-                if (senderPayload != null && senderPayload is PlayerPayload playerPayload)
+                var senderPayload = sender.Payloads.Where(payload => payload is PlayerPayload).FirstOrDefault();
+                if (senderPayload != default(Payload) && senderPayload is PlayerPayload playerPayload)
                 {
                     if (Config.Eureka)
                     {
