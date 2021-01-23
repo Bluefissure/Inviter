@@ -9,5 +9,5 @@ Download the latest version of "Inviter.zip" from the [Release](https://github.c
 
 ## Known bugs
 
-The plugin won't auto disable itself after the party is full, due to the [null PartyList](https://github.com/goatcorp/Dalamud/blob/3bfd6740d5c5e529b6b0d2f1cbd17fcc3c628588/Dalamud/Game/ClientState/PartyList.cs#L32) in Dalamud.
+~~The plugin won't auto disable itself after the party is full, due to the [null PartyList](https://github.com/goatcorp/Dalamud/blob/3bfd6740d5c5e529b6b0d2f1cbd17fcc3c628588/Dalamud/Game/ClientState/PartyList.cs#L32) in Dalamud.~~ (Fixed since [v1.0.1.0](https://github.com/Bluefissure/Inviter/releases/tag/v1.0.1.0))
 
