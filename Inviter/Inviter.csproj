@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -30,6 +31,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Dalamud">
@@ -45,7 +47,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\Lumina.dll</HintPath>
     </Reference>
-    <Reference Include="Lumina.Generated, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="Lumina.Excel">
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\Lumina.Excel.dll</HintPath>
+    </Reference>
     <Reference Include="SDL2-CS">
       <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\SDL2-CS.dll</HintPath>
     </Reference>
@@ -60,6 +64,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClientStructs\GroupManager.cs" />
+    <Compile Include="ClientStructs\PartyMember.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Gui\ConfigurationWindow.cs" />
     <Compile Include="Gui\Localizer.cs" />

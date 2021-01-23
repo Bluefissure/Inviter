@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Dalamud.Hooking;
 using Dalamud.Game.Internal.Network;
+using GroupManager = Inviter.ClientStructs.GroupManager;
+using PartyMember = Inviter.ClientStructs.PartyMember;
 
 namespace Inviter
 {
@@ -44,14 +46,15 @@ namespace Inviter
         private IntPtr uiModulePtr;
         private IntPtr uiModule;
         private Int64 uiInvite;
+        private IntPtr groupManagerAddress;
         private Dictionary<string, Int64> name2CID;
 
         public void Dispose()
         {
-            //easierProcessCIDHook.Dispose();
-            //easierProcessEurekaInviteHook.Dispose();
+            easierProcessCIDHook.Dispose();
+            // easierProcessEurekaInviteHook.Dispose();
             Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
-            Interface.Framework.Network.OnNetworkMessage -= Chat_OnNetworkMessage;
+            // Interface.Framework.Network.OnNetworkMessage -= Chat_OnNetworkMessage;
             Interface.ClientState.TerritoryChanged -= TerritoryChanged;
             Interface.CommandManager.RemoveHandler("/xinvite");
             Gui?.Dispose();
@@ -70,10 +73,13 @@ namespace Inviter
             getUIModulePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
             uiModulePtr = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
             InitUi();
+            groupManagerAddress = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? 44 8B E7");
             PluginLog.Log("===== I N V I T E R =====");
             PluginLog.Log("Process Invite address {Address}", easierProcessInvitePtr);
+            PluginLog.Log("Process CID address {Address}", easierProcessCIDPtr);
             PluginLog.Log("uiModule address {Address}", uiModule);
             PluginLog.Log("uiInvite address {Address}", uiInvite);
+            PluginLog.Log("groupManager address {Address}", groupManagerAddress);
 
 
             //Log($"EurekaInvite:{easierProcessEurekaInvitePtr}");
@@ -85,10 +91,10 @@ namespace Inviter
                                                                                new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
                                                                                this);
             */
-            //easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr,
-            //                                                                   new EasierProcessCIDDelegate(EasierProcessCIDDetour),
-            //                                                                   this);
-            //easierProcessCIDHook.Enable();
+            easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr,
+                                                                               new EasierProcessCIDDelegate(EasierProcessCIDDetour),
+                                                                               this);
+            easierProcessCIDHook.Enable();
             //easierProcessEurekaInviteHook.Enable();
 
             Interface.CommandManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
@@ -97,7 +103,7 @@ namespace Inviter
             });
             Gui = new PluginUi(this);
             Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
-            Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
+            // Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
             Interface.ClientState.TerritoryChanged += TerritoryChanged;
         }
 
@@ -138,6 +144,23 @@ namespace Inviter
                 Interface.Framework.Gui.Chat.Print($"Auto invite is turned off");
                 Config.Save();
             }
+            /*
+            else if (args == "party")
+            {
+                unsafe
+                {
+                    GroupManager* groupManager = (GroupManager*)groupManagerAddress;
+                    var partyMembers = (PartyMember*)groupManager->PartyMembers;
+                    var leader = partyMembers[groupManager->PartyLeaderIndex];
+                    string leaderName = StringFromNativeUtf8(new IntPtr(leader.Name));
+                    Log($"MemberCount:{groupManager->MemberCount}");
+                    Log($"LeaderIndex:{groupManager->PartyLeaderIndex}");
+                    Log($"LeaderName:{leaderName}");
+                    Log($"SelfName:{Interface.ClientState.LocalPlayer.Name}");
+                    Log($"isLeader:{Interface.ClientState.LocalPlayer.Name == leaderName}");
+                }
+            }
+            */
         }
         private void InitUi()
         {
@@ -146,19 +169,19 @@ namespace Inviter
             if (uiModule == IntPtr.Zero)
                 throw new ApplicationException("uiModule was null");
             IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 264;
-            Log($"step2:{step2}");
+            PluginLog.Log($"step2:0x{step2:X}");
             if (step2 == IntPtr.Zero)
                 throw new ApplicationException("step2 was null");
             IntPtr step3 = Marshal.ReadIntPtr(step2);
-            Log($"step3:{step3}");
+            PluginLog.Log($"step3:0x{step3:X}");
             if (step3 == IntPtr.Zero)
                 throw new ApplicationException("step3 was null");
             IntPtr step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6528;
-            Log($"step4:{step4}");
+            PluginLog.Log($"step4:0x{step4:X}");
             if (step4 == (IntPtr.Zero + 6528))
                 throw new ApplicationException("step4 was null");
             uiInvite = Marshal.ReadInt64(step4);
-            Log($"uiInvite:{uiInvite}");
+            PluginLog.Log($"uiInvite:{uiInvite:X}");
         }
 
         public void Log(string message)
@@ -177,16 +200,23 @@ namespace Inviter
         }
         private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
         {
+            return;
             if (!Config.Enable || !Config.Eureka) return;
             if (direction != NetworkMessageDirection.ZoneDown)
                 return;
             var client = Interface.ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
+            // not used after hooking the function
             // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs.cs
             // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs_cn.cs
             // if not found, it'll be triggered when chatting and the length should be 1104.
-            ushort chat_opcode = (ushort)(client == "cn" ? 0x0106 : 0x0349); 
+            ushort chat_opcode = (ushort)(client == "cn" ? 0x021e : 0x02c2); 
             if (opCode != chat_opcode)
                 return;
+            byte[] managedArray = new byte[32];
+            Marshal.Copy(dataPtr, managedArray, 0, 32);
+            Log("Network dataPtr");
+            Log(BitConverter.ToString(managedArray).Replace("-", " "));
+            return;
             Int64 CID = Marshal.ReadInt64(dataPtr);
             short world_id = Marshal.ReadInt16(dataPtr, 12);
             string name = StringFromNativeUtf8(dataPtr + 16);
@@ -218,7 +248,6 @@ namespace Inviter
         private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
-            if (Interface.ClientState.PartyList?.Count >= 8) return; // The party list is null for now
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
             if (Config.HiddenChatType.IndexOf(type) != -1) return;
             var pattern = Config.TextPattern;
@@ -234,9 +263,39 @@ namespace Inviter
             }
             if (matched)
             {
+
                 var senderPayload = sender.Payloads.Where(payload => payload is PlayerPayload).FirstOrDefault();
                 if (senderPayload != default(Payload) && senderPayload is PlayerPayload playerPayload)
                 {
+
+                    if (groupManagerAddress != IntPtr.Zero)
+                    {
+                        unsafe
+                        {
+                            GroupManager* groupManager = (GroupManager*)groupManagerAddress;
+                            if (groupManager->MemberCount >= 8)
+                            {
+                                Log($"Full party, won't invite.");
+                                return;
+                            }
+                            else
+                            {
+                                if (groupManager->MemberCount > 0)
+                                {
+                                    var partyMembers = (PartyMember*)groupManager->PartyMembers;
+                                    var leader = partyMembers[groupManager->PartyLeaderIndex];
+                                    string leaderName = StringFromNativeUtf8(new IntPtr(leader.Name));
+
+                                    if (Interface.ClientState.LocalPlayer.Name != leaderName)
+                                    {
+                                        Log($"Not leader, won't invite. (Leader: {leaderName})");
+                                        return;
+                                    }
+                                }
+                                Log($"Party Count:{groupManager->MemberCount}");
+                            }
+                        }
+                    }
                     if (Config.Eureka)
                     {
                         Task.Run(() =>
@@ -284,13 +343,28 @@ namespace Inviter
             Int64 CID = name2CID[playerNameKey];
             _EasierProcessEurekaInvite(uiInvite, CID);
         }
-        /*
         public char EasierProcessCIDDetour(Int64 a1, Int64 a2)
         {
-            Log($"CID hook a1:{a1}");
-            Log($"CID hook a2:{a2}");
+            IntPtr dataPtr = (IntPtr)a2;
+            // Log($"CID hook a1:{a1}");
+            // Log($"CID hook a2:{dataPtr}");
+            if (Config.Enable && Config.Eureka && dataPtr != IntPtr.Zero)
+            {
+                Int64 CID = Marshal.ReadInt64(dataPtr);
+                short world_id = Marshal.ReadInt16(dataPtr, 12);
+                var world = Interface.Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>().GetRow((uint)world_id);
+                string name = StringFromNativeUtf8(dataPtr + 16);
+                Log($"{name}@{world.Name}:{CID}");
+                string playerNameKey = $"{name}@{world_id}";
+                if (!name2CID.ContainsKey(playerNameKey))
+                {
+                    name2CID.Add(playerNameKey, CID);
+                }
+            }
             return easierProcessCIDHook.Original(a1, a2);
         }
+
+        /*
         public char EasierProcessEurekaInviteDetour(Int64 a1, Int64 a2)
         {
             Log($"EurekaInvite hook a1:{a1}");
