@@ -21,6 +21,7 @@ using Dalamud.Hooking;
 using Dalamud.Game.Internal.Network;
 using GroupManager = Inviter.ClientStructs.GroupManager;
 using PartyMember = Inviter.ClientStructs.PartyMember;
+using Dalamud.Game.Internal.Gui.Toast;
 
 namespace Inviter
 {
@@ -48,9 +49,15 @@ namespace Inviter
         private Int64 uiInvite;
         private IntPtr groupManagerAddress;
         private Dictionary<string, Int64> name2CID;
+        internal ThreadTimedEnable timedRecruitment;
 
         public void Dispose()
         {
+            if (timedRecruitment.isRunning)
+            {
+                timedRecruitment.runUntil = 0;
+                Config.Enable = false;
+            }
             easierProcessCIDHook.Dispose();
             // easierProcessEurekaInviteHook.Dispose();
             Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
@@ -105,6 +112,7 @@ namespace Inviter
             Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
             // Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
             Interface.ClientState.TerritoryChanged += TerritoryChanged;
+            timedRecruitment = new ThreadTimedEnable(this);
         }
 
         private void TerritoryChanged(object sender, ushort e)
@@ -143,6 +151,45 @@ namespace Inviter
                 Config.Enable = false;
                 Interface.Framework.Gui.Chat.Print($"Auto invite is turned off");
                 Config.Save();
+            }
+            else
+            {
+                if (Config.Enable && !timedRecruitment.isRunning)
+                {
+                    Interface.Framework.Gui.Toast.ShowError("Can't start timed recruitment because Inviter is turned on permanently");
+                }
+                else
+                {
+                    try
+                    {
+                        var time = int.Parse(args);
+                        if (time > 0)
+                        {
+                            timedRecruitment.runUntil = DateTimeOffset.Now.ToUnixTimeSeconds() + time * 60;
+                            if (!timedRecruitment.isRunning)
+                            {
+                                new Thread(new ThreadStart(timedRecruitment.Run)).Start();
+                            }
+                            Interface.Framework.Gui.Toast.ShowQuest("Commenced automatic recruitment for " + time + " minutes", new QuestToastOptions()
+                            {
+                                DisplayCheckmark = true,
+                                PlaySound = true
+                            });
+                        }
+                        else if (time == 0)
+                        {
+                            timedRecruitment.runUntil = 0;
+                        }
+                        else
+                        {
+                            Interface.Framework.Gui.Toast.ShowError("Time can not be negative");
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        Interface.Framework.Gui.Toast.ShowError("Please enter amount of time in minutes");
+                    }
+                }
             }
             /*
             else if (args == "party")
