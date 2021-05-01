@@ -14,18 +14,22 @@ namespace Inviter
 
             _plugin = plugin;
             _plugin.Interface.UiBuilder.OnBuildUi += Draw;
-            _plugin.Interface.UiBuilder.OnOpenConfigUi += (sender, args) => ConfigWindow.Visible = true;
+            _plugin.Interface.UiBuilder.OnOpenConfigUi += OnOpenConfigUi;
         }
 
         private void Draw()
         {
             ConfigWindow.Draw();
         }
+        private void OnOpenConfigUi(object sender, EventArgs args)
+        {
+            ConfigWindow.Visible = true;
+        }
 
         public void Dispose()
         {
             _plugin.Interface.UiBuilder.OnBuildUi -= Draw;
-            _plugin.Interface.UiBuilder.OnOpenConfigUi = null;
+            _plugin.Interface.UiBuilder.OnOpenConfigUi -= OnOpenConfigUi;
         }
     }
 }
