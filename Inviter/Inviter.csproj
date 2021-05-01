@@ -35,23 +35,23 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Dalamud">
-      <HintPath>..\..\DalamudChina\Dalamud\bin\Debug\Dalamud.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\Dalamud.dll</HintPath>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>..\..\..\..\..\..\VS\DalamudBin\ImGui.NET.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\ImGui.NET.dll</HintPath>
     </Reference>
     <Reference Include="ImGuiScene">
-      <HintPath>..\..\..\..\..\..\VS\DalamudBin\ImGuiScene.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\ImGuiScene.dll</HintPath>
     </Reference>
     <Reference Include="Lumina, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\VS\DalamudBin\Lumina.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\Lumina.dll</HintPath>
     </Reference>
     <Reference Include="Lumina.Excel">
-      <HintPath>..\..\..\..\..\..\VS\DalamudBin\Lumina.Excel.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\Lumina.Excel.dll</HintPath>
     </Reference>
     <Reference Include="SDL2-CS">
-      <HintPath>..\..\..\..\..\..\VS\DalamudBin\SDL2-CS.dll</HintPath>
+      <HintPath>..\..\..\..\Git\_Dalamud_\Dalamud\Dalamud\bin\Debug\SDL2-CS.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

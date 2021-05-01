@@ -38,10 +38,10 @@ namespace Inviter
                     }
                     if(DateTimeOffset.Now.ToUnixTimeSeconds() >= nextNotification)
                     {
-                        plugin.Interface.Framework.Gui.Chat.Print("Automatic recruitment enabled, "+
+                        plugin.Interface.Framework.Gui.Toast.ShowQuest("Automatic recruitment enabled, "+
                             Math.Ceiling((runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 60d)
                             + " minutes left");
-                        nextNotification = DateTimeOffset.Now.ToUnixTimeSeconds() + Math.Max(60, (runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 2);
+                        UpdateTimeNextNotification();
                     }
                 }
                 plugin.Interface.Framework.Gui.Toast.ShowQuest("Automatic recruitment finished", new QuestToastOptions()
@@ -58,6 +58,11 @@ namespace Inviter
             isRunning = false;
         }
 
+        internal void UpdateTimeNextNotification()
+        {
+            nextNotification = DateTimeOffset.Now.ToUnixTimeSeconds() + Math.Max(60, (runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 2);
+        }
+
         internal void ProcessCommandTimedEnable(string args)
         {
             if (plugin.Config.Enable && !isRunning)
@@ -72,7 +77,11 @@ namespace Inviter
                     if (time > 0)
                     {
                         runUntil = DateTimeOffset.Now.ToUnixTimeSeconds() + time * 60;
-                        if (!isRunning)
+                        if (isRunning) 
+                        {
+                            UpdateTimeNextNotification();
+                        }
+                        else
                         {
                             new Thread(new ThreadStart(Run)).Start();
                         }
