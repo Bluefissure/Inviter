@@ -73,6 +73,7 @@
     <Compile Include="Inviter.cs" />
     <Compile Include="PluginUi.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TimedEnable.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

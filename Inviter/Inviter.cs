@@ -48,9 +48,15 @@ namespace Inviter
         private Int64 uiInvite;
         private IntPtr groupManagerAddress;
         private Dictionary<string, Int64> name2CID;
+        internal TimedEnable timedRecruitment;
 
         public void Dispose()
         {
+            if (timedRecruitment.isRunning)
+            {
+                timedRecruitment.runUntil = 0;
+                Config.Enable = false;
+            }
             easierProcessCIDHook.Dispose();
             // easierProcessEurekaInviteHook.Dispose();
             Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
@@ -105,6 +111,7 @@ namespace Inviter
             Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
             // Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
             Interface.ClientState.TerritoryChanged += TerritoryChanged;
+            timedRecruitment = new TimedEnable(this);
         }
 
         private void TerritoryChanged(object sender, ushort e)
@@ -143,6 +150,10 @@ namespace Inviter
                 Config.Enable = false;
                 Interface.Framework.Gui.Chat.Print($"Auto invite is turned off");
                 Config.Save();
+            }
+            else
+            {
+                timedRecruitment.ProcessCommandTimedEnable(args);
             }
             /*
             else if (args == "party")
