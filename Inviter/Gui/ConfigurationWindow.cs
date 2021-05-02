@@ -13,7 +13,7 @@ namespace Inviter.Gui
         public Configuration Config => Plugin.Config;
         private readonly string[] _languageList;
         private int _selectedLanguage;
-        private Localizer _localizer;
+        internal Localizer _localizer;
 
         
 

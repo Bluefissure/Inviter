@@ -19,6 +19,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Dalamud.Hooking;
 using Dalamud.Game.Internal.Network;
+using Dalamud.Game.Internal.Gui.Toast;
 using GroupManager = Inviter.ClientStructs.GroupManager;
 using PartyMember = Inviter.ClientStructs.PartyMember;
 
@@ -28,6 +29,7 @@ namespace Inviter
     {
         public string Name => "Inviter";
         public PluginUi Gui { get; private set; }
+        internal Gui.Localizer Localizer => Gui.ConfigWindow._localizer;
         public DalamudPluginInterface Interface { get; private set; }
         public Configuration Config { get; private set; }
 
@@ -49,6 +51,7 @@ namespace Inviter
         private IntPtr groupManagerAddress;
         private Dictionary<string, Int64> name2CID;
         internal TimedEnable timedRecruitment;
+
 
         public void Dispose()
         {
@@ -142,18 +145,28 @@ namespace Inviter
             else if (args == "on")
             {
                 Config.Enable = true;
-                Interface.Framework.Gui.Chat.Print($"Auto invite is turned on for \"{Config.TextPattern}\"");
+                Interface.Framework.Gui.Toast.ShowQuest(
+                        String.Format(Localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern)
+                    , new QuestToastOptions
+                    {
+                        DisplayCheckmark = true,
+                        PlaySound = true
+                    });
                 Config.Save();
             }
             else if (args == "off")
             {
                 Config.Enable = false;
-                Interface.Framework.Gui.Chat.Print($"Auto invite is turned off");
+                Interface.Framework.Gui.Toast.ShowQuest(Localizer.Localize("Auto invite is turned off"), new QuestToastOptions
+                    {
+                        DisplayCheckmark = true,
+                        PlaySound = true
+                    });
                 Config.Save();
             }
-            else
+            else if (int.TryParse(args, out int timeInMinutes))
             {
-                timedRecruitment.ProcessCommandTimedEnable(args);
+                timedRecruitment.ProcessCommandTimedEnable(timeInMinutes);
             }
             /*
             else if (args == "party")

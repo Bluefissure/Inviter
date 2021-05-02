@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Inviter.Gui;
 
 namespace Inviter
 {
@@ -15,6 +16,7 @@ namespace Inviter
         internal long runUntil = 0;
         internal long nextNotification = 0;
         internal bool isRunning = false;
+        internal Localizer Localizer => plugin.Localizer;
 
         internal TimedEnable(Inviter plugin)
         {
@@ -28,7 +30,7 @@ namespace Inviter
             try
             {
                 plugin.Config.Enable = true;
-                while (runUntil > DateTimeOffset.Now.ToUnixTimeSeconds())
+                while (DateTimeOffset.Now.ToUnixTimeSeconds() < runUntil)
                 {
                     Thread.Sleep(1000);
                     if (!plugin.Config.Enable)
@@ -36,15 +38,16 @@ namespace Inviter
                         runUntil = 0;
                         break;
                     }
-                    if(DateTimeOffset.Now.ToUnixTimeSeconds() >= nextNotification)
+                    if(DateTimeOffset.Now.ToUnixTimeSeconds() >= nextNotification && DateTimeOffset.Now.ToUnixTimeSeconds() < runUntil)
                     {
-                        plugin.Interface.Framework.Gui.Toast.ShowQuest("Automatic recruitment enabled, "+
-                            Math.Ceiling((runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 60d)
-                            + " minutes left");
+                        plugin.Interface.Framework.Gui.Toast.ShowQuest(
+                            String.Format(Localizer.Localize("Automatic recruitment enabled, {0} minutes left"),
+                            Math.Ceiling((runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 60d))
+                            );
                         UpdateTimeNextNotification();
                     }
                 }
-                plugin.Interface.Framework.Gui.Toast.ShowQuest("Automatic recruitment finished", new QuestToastOptions()
+                plugin.Interface.Framework.Gui.Toast.ShowQuest(Localizer.Localize("Automatic recruitment finished"), new QuestToastOptions()
                 {
                     DisplayCheckmark = true,
                     PlaySound = true
@@ -63,17 +66,19 @@ namespace Inviter
             nextNotification = DateTimeOffset.Now.ToUnixTimeSeconds() + Math.Max(60, (runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 2);
         }
 
-        internal void ProcessCommandTimedEnable(string args)
+        internal void ProcessCommandTimedEnable(int timeInMinutes)
         {
             if (plugin.Config.Enable && !isRunning)
             {
-                plugin.Interface.Framework.Gui.Toast.ShowError("Can't start timed recruitment because Inviter is turned on permanently");
+                plugin.Interface.Framework.Gui.Toast.ShowError(Localizer.Localize(
+                        "Can't start timed recruitment because Inviter is turned on permanently"
+                    ));
             }
             else
             {
                 try
                 {
-                    var time = int.Parse(args);
+                    var time = timeInMinutes;
                     if (time > 0)
                     {
                         runUntil = DateTimeOffset.Now.ToUnixTimeSeconds() + time * 60;
@@ -85,11 +90,13 @@ namespace Inviter
                         {
                             new Thread(new ThreadStart(Run)).Start();
                         }
-                        plugin.Interface.Framework.Gui.Toast.ShowQuest("Commenced automatic recruitment for " + time + " minutes", new QuestToastOptions()
-                        {
-                            DisplayCheckmark = true,
-                            PlaySound = true
-                        });
+                        plugin.Interface.Framework.Gui.Toast.ShowQuest(
+                            String.Format(Localizer.Localize("Commenced automatic recruitment for {0} minutes"), time)
+                            , new QuestToastOptions()
+                            {
+                                DisplayCheckmark = true,
+                                PlaySound = true
+                            });
                     }
                     else if (time == 0)
                     {
@@ -99,17 +106,18 @@ namespace Inviter
                         }
                         else
                         {
-                            plugin.Interface.Framework.Gui.Toast.ShowError("Recruitment is not running; can not cancel");
+                            plugin.Interface.Framework.Gui.Toast.ShowError(Localizer.Localize("Recruitment is not running, can not cancel"));
                         }
                     }
                     else
                     {
-                        plugin.Interface.Framework.Gui.Toast.ShowError("Time can not be negative");
+                        plugin.Interface.Framework.Gui.Toast.ShowError(Localizer.Localize("Time can not be negative"));
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    plugin.Interface.Framework.Gui.Toast.ShowError("Please enter amount of time in minutes");
+                    // plugin.Interface.Framework.Gui.Chat.Print("Error: " + e.Message + "\n" + e.StackTrace);
+                    plugin.Interface.Framework.Gui.Toast.ShowError(Localizer.Localize("Please enter amount of time in minutes"));
                 }
             }
         }

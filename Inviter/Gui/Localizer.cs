@@ -21,8 +21,8 @@ namespace Inviter.Gui
         public string Localize(string message)
         {
             if (message == null) return message;
-            if (Language == "zh") return zh.ContainsKey(message) ? zh[message] : message;
-            if (Language == "fr") return fr.ContainsKey(message) ? fr[message] : message;
+            else if (Language == "zh") return zh.ContainsKey(message) ? zh[message] : message;
+            else if (Language == "fr") return fr.ContainsKey(message) ? fr[message] : message;
             return message;
         }
         private void LoadZh()
@@ -89,6 +89,15 @@ namespace Inviter.Gui
             zh.Add("Tele", "传送");
             zh.Add("Del", "删除");
             zh.Add("Clear", "清空");
+            zh.Add("Auto invite is turned off", "自动邀请已关闭");
+            zh.Add("Auto invite is turned on for \"{0}\"", "已启用\"{0}\"的自动邀请");
+            zh.Add("Automatic recruitment enabled, {0} minutes left", "自动邀请已启用，剩余{0}分钟");
+            zh.Add("Automatic recruitment finished", "自动邀请已结束");
+            zh.Add("Can't start timed recruitment because Inviter is turned on permanently", "Inviter 启用时无法开始限时自动邀请");
+            zh.Add("Commenced automatic recruitment for {0} minutes", "开始了时长为{0}分钟的自动邀请");
+            zh.Add("Recruitment is not running, can not cancel", "限时自动邀请未运行，无法取消");
+            zh.Add("Time can not be negative", "时间不能为负数");
+            zh.Add("Please enter amount of time in minutes", "请输入分钟数作为时长");
         }
         private void LoadFr()
         {
