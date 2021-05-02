@@ -108,7 +108,9 @@ namespace Inviter
 
             Interface.CommandManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
-                HelpMessage = "/xinvite - open the inviter panel."
+                HelpMessage = "/xinvite - open the inviter panel.\n" +
+                    "/xinvite <on/off> - turn the auto invite on/off.\n" +
+                    "/xinvite <integer> - enable auto invite in minutes."
             });
             Gui = new PluginUi(this);
             Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
