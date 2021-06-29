@@ -302,7 +302,10 @@ namespace Inviter
                             if (groupManager->MemberCount >= 8)
                             {
                                 Log($"Full party, won't invite.");
-
+                                if (timedRecruitment.isRunning)
+                                {
+                                    timedRecruitment.runUntil = 0;
+                                }
                                 return;
                             }
                             else
