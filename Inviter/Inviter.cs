@@ -121,7 +121,7 @@ namespace Inviter
 
         private void TerritoryChanged(object sender, ushort e)
         {
-            List<ushort> eureka_territories = new List<ushort> { 732, 763, 795, 827, 920 };
+            List<ushort> eureka_territories = new List<ushort> { 732, 763, 795, 827, 920, 975 };
             if (eureka_territories.IndexOf(e) != -1)
             {
                 Config.Eureka = true;
@@ -302,6 +302,7 @@ namespace Inviter
                             if (groupManager->MemberCount >= 8)
                             {
                                 Log($"Full party, won't invite.");
+
                                 return;
                             }
                             else
