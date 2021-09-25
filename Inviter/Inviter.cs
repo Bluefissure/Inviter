@@ -4,24 +4,25 @@ using System.Linq;
 using Dalamud;
 using Dalamud.Plugin;
 using Dalamud.Game.Command;
-using Dalamud.Game.ClientState.Actors.Types;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using System.Text;
 using System.Threading.Tasks;
-using ImGuiScene;
-using System.Security.Principal;
 using System.Runtime.InteropServices;
-using Dalamud.Game.ClientState.Actors.Resolvers;
-using Dalamud.Game.Internal.Libc;
+using Dalamud.Game.ClientState;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Dalamud.Hooking;
-using Dalamud.Game.Internal.Network;
-using Dalamud.Game.Internal.Gui.Toast;
+using Dalamud.Game;
+using Dalamud.Game.Gui;
+using Dalamud.Game.Gui.Toast;
+using Dalamud.Game.Network;
+using Dalamud.Logging;
+using Dalamud.IoC;
 using GroupManager = Inviter.ClientStructs.GroupManager;
 using PartyMember = Inviter.ClientStructs.PartyMember;
+using Dalamud.Data;
 
 namespace Inviter
 {
@@ -30,7 +31,6 @@ namespace Inviter
         public string Name => "Inviter";
         public PluginUi Gui { get; private set; }
         internal Gui.Localizer Localizer => Gui.ConfigWindow._localizer;
-        public DalamudPluginInterface Interface { get; private set; }
         public Configuration Config { get; private set; }
 
         private delegate IntPtr GetUIBaseDelegate();
@@ -52,6 +52,25 @@ namespace Inviter
         private Dictionary<string, Int64> name2CID;
         internal TimedEnable timedRecruitment;
 
+        [PluginService]
+        public static CommandManager CmdManager { get; private set; }
+        [PluginService]
+        public static Framework Framework { get; private set; }
+        [PluginService]
+        public static SigScanner SigScanner { get; private set; }
+        [PluginService]
+        public static DalamudPluginInterface Interface { get; private set; }
+        [PluginService]
+        public static GameGui GameGui { get; private set; }
+        [PluginService]
+        public static ChatGui ChatGui { get; private set; }
+        [PluginService]
+        public static ToastGui ToastGui { get; private set; }
+        [PluginService]
+        public static ClientState ClientState { get; private set; }
+        [PluginService]
+        public static DataManager Data { get; private set; }
+
 
         public void Dispose()
         {
@@ -62,27 +81,26 @@ namespace Inviter
             }
             easierProcessCIDHook.Dispose();
             // easierProcessEurekaInviteHook.Dispose();
-            Interface.Framework.Gui.Chat.OnChatMessage -= Chat_OnChatMessage;
+            ChatGui.ChatMessage -= Chat_OnChatMessage;
             // Interface.Framework.Network.OnNetworkMessage -= Chat_OnNetworkMessage;
-            Interface.ClientState.TerritoryChanged -= TerritoryChanged;
-            Interface.CommandManager.RemoveHandler("/xinvite");
+            ClientState.TerritoryChanged -= TerritoryChanged;
+            CmdManager.RemoveHandler("/xinvite");
             Gui?.Dispose();
             Interface?.Dispose();
         }
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
+        public Inviter()
         {
             name2CID = new Dictionary<string, long> { };
-            Interface = pluginInterface;
-            Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            Config.Initialize(pluginInterface);
-            var easierProcessInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? EB 3E 44 0F B7 83 ?? ?? ?? ??");
-            var easierProcessEurekaInvitePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0 74 62");
-            var easierProcessCIDPtr = Interface.TargetModuleScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 08");
-            getUIModulePtr = Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
-            uiModulePtr = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
+            Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
+            Config.Initialize(Interface);
+            var easierProcessInvitePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? EB 3E 44 0F B7 83 ?? ?? ?? ??");
+            var easierProcessEurekaInvitePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0 74 62");
+            var easierProcessCIDPtr = SigScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 08");
+            getUIModulePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
+            uiModulePtr = SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
             InitUi();
-            groupManagerAddress = Interface.TargetModuleScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? 44 8B E7");
+            groupManagerAddress = SigScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? 44 8B E7");
             PluginLog.Log("===== I N V I T E R =====");
             PluginLog.Log("Process Invite address {Address}", easierProcessInvitePtr);
             PluginLog.Log("Process CID address {Address}", easierProcessCIDPtr);
@@ -100,22 +118,20 @@ namespace Inviter
                                                                                new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
                                                                                this);
             */
-            easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr,
-                                                                               new EasierProcessCIDDelegate(EasierProcessCIDDetour),
-                                                                               this);
+            easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr, new EasierProcessCIDDelegate(EasierProcessCIDDetour));
             easierProcessCIDHook.Enable();
             //easierProcessEurekaInviteHook.Enable();
 
-            Interface.CommandManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
+            CmdManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
                 HelpMessage = "/xinvite - open the inviter panel.\n" +
                     "/xinvite <on/off> - turn the auto invite on/off.\n" +
                     "/xinvite <integer> - enable auto invite in minutes."
             });
             Gui = new PluginUi(this);
-            Interface.Framework.Gui.Chat.OnChatMessage += Chat_OnChatMessage;
+            ChatGui.ChatMessage += Chat_OnChatMessage;
             // Interface.Framework.Network.OnNetworkMessage += Chat_OnNetworkMessage;
-            Interface.ClientState.TerritoryChanged += TerritoryChanged;
+            ClientState.TerritoryChanged += TerritoryChanged;
             timedRecruitment = new TimedEnable(this);
         }
 
@@ -147,7 +163,7 @@ namespace Inviter
             else if (args == "on")
             {
                 Config.Enable = true;
-                Interface.Framework.Gui.Toast.ShowQuest(
+                ToastGui.ShowQuest(
                         String.Format(Localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern)
                     , new QuestToastOptions
                     {
@@ -159,7 +175,7 @@ namespace Inviter
             else if (args == "off")
             {
                 Config.Enable = false;
-                Interface.Framework.Gui.Toast.ShowQuest(Localizer.Localize("Auto invite is turned off"), new QuestToastOptions
+                ToastGui.ShowQuest(Localizer.Localize("Auto invite is turned off"), new QuestToastOptions
                     {
                         DisplayCheckmark = true,
                         PlaySound = true
@@ -215,14 +231,14 @@ namespace Inviter
             if (!Config.PrintMessage) return;
             var msg = $"[{Name}] {message}";
             PluginLog.Log(msg);
-            Interface.Framework.Gui.Chat.Print(msg);
+            ChatGui.Print(msg);
         }
         public void LogError(string message)
         {
             if (!Config.PrintError) return;
             var msg = $"[{Name}] {message}";
             PluginLog.LogError(msg);
-            Interface.Framework.Gui.Chat.PrintError(msg);
+            ChatGui.PrintError(msg);
         }
         private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
         {
@@ -230,7 +246,7 @@ namespace Inviter
             if (!Config.Enable || !Config.Eureka) return;
             if (direction != NetworkMessageDirection.ZoneDown)
                 return;
-            var client = Interface.ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
+            var client = ClientState.ClientLanguage == ClientLanguage.ChineseSimplified ? "cn" : "intl";
             // not used after hooking the function
             // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs.cs
             // https://github.com/karashiiro/MachinaWrapperJSON/blob/master/MachinaWrapper/Models/Sapphire/Ipcs_cn.cs
@@ -316,7 +332,7 @@ namespace Inviter
                                     var leader = partyMembers[groupManager->PartyLeaderIndex];
                                     string leaderName = StringFromNativeUtf8(new IntPtr(leader.Name));
 
-                                    if (Interface.ClientState.LocalPlayer.Name != leaderName)
+                                    if (ClientState.LocalPlayer.Name.ToString() != leaderName)
                                     {
                                         Log($"Not leader, won't invite. (Leader: {leaderName})");
                                         return;
@@ -376,13 +392,18 @@ namespace Inviter
         public char EasierProcessCIDDetour(Int64 a1, Int64 a2)
         {
             IntPtr dataPtr = (IntPtr)a2;
-            // Log($"CID hook a1:{a1}");
-            // Log($"CID hook a2:{dataPtr}");
+            Log($"CID hook a1: 0x{a1:X}");
+            Log($"CID hook dataPtr: 0x{dataPtr:X}");
+            /*
+            byte[] managedArray = new byte[32];
+            Marshal.Copy(dataPtr, managedArray, 0, 32);
+            Log(BitConverter.ToString(managedArray).Replace("-", " "));
+            */
             if (Config.Enable && Config.Eureka && dataPtr != IntPtr.Zero)
             {
                 Int64 CID = Marshal.ReadInt64(dataPtr);
                 short world_id = Marshal.ReadInt16(dataPtr, 12);
-                var world = Interface.Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>().GetRow((uint)world_id);
+                var world = Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>().GetRow((uint)world_id);
                 string name = StringFromNativeUtf8(dataPtr + 16);
                 Log($"{name}@{world.Name}:{CID}");
                 string playerNameKey = $"{name}@{world_id}";

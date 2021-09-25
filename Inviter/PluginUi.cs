@@ -13,23 +13,23 @@ namespace Inviter
             ConfigWindow = new ConfigurationWindow(plugin);
 
             _plugin = plugin;
-            _plugin.Interface.UiBuilder.OnBuildUi += Draw;
-            _plugin.Interface.UiBuilder.OnOpenConfigUi += OnOpenConfigUi;
+            Inviter.Interface.UiBuilder.Draw += Draw;
+            Inviter.Interface.UiBuilder.OpenConfigUi += OnOpenConfigUi;
         }
 
         private void Draw()
         {
             ConfigWindow.Draw();
         }
-        private void OnOpenConfigUi(object sender, EventArgs args)
+        private void OnOpenConfigUi()
         {
             ConfigWindow.Visible = true;
         }
 
         public void Dispose()
         {
-            _plugin.Interface.UiBuilder.OnBuildUi -= Draw;
-            _plugin.Interface.UiBuilder.OnOpenConfigUi -= OnOpenConfigUi;
+            Inviter.Interface.UiBuilder.Draw -= Draw;
+            Inviter.Interface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         }
     }
 }
