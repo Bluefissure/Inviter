@@ -176,10 +176,33 @@ namespace Inviter
             {
                 Config.Enable = false;
                 ToastGui.ShowQuest(Localizer.Localize("Auto invite is turned off"), new QuestToastOptions
+                {
+                    DisplayCheckmark = true,
+                    PlaySound = true
+                });
+                Config.Save();
+            }
+            else if (args == "toggle")
+            {
+                Config.Enable = !Config.Enable;
+                if (Config.Enable)
+                {
+                    ToastGui.ShowQuest(
+                        String.Format(Localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern)
+                    , new QuestToastOptions
                     {
                         DisplayCheckmark = true,
                         PlaySound = true
                     });
+                }
+                else
+                {
+                    ToastGui.ShowQuest(Localizer.Localize("Auto invite is turned off"), new QuestToastOptions
+                    {
+                        DisplayCheckmark = true,
+                        PlaySound = true
+                    });
+                }
                 Config.Save();
             }
             else if (int.TryParse(args, out int timeInMinutes))
