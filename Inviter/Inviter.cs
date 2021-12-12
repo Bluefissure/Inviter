@@ -33,6 +33,8 @@ namespace Inviter
         internal Gui.Localizer Localizer => Gui.ConfigWindow._localizer;
         public Configuration Config { get; private set; }
 
+        private static object LockInviteObj = new object();
+
         private delegate IntPtr GetUIBaseDelegate();
         private delegate IntPtr GetUIModuleDelegate(IntPtr basePtr);
         private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, IntPtr name, Int16 world_id);
@@ -266,6 +268,7 @@ namespace Inviter
         private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
         {
             return;
+            /*
             if (!Config.Enable || !Config.Eureka) return;
             if (direction != NetworkMessageDirection.ZoneDown)
                 return;
@@ -291,6 +294,7 @@ namespace Inviter
             {
                 name2CID.Add(playerNameKey, CID);
             }
+            */
         }
         public static IntPtr NativeUtf8FromString(string managedString)
         {
@@ -394,7 +398,10 @@ namespace Inviter
             IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
             Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
             Marshal.WriteByte(mem1, player_bytes.Length, 0);
-            _EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
+            lock (LockInviteObj)
+            {
+                _EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
+            }
             Marshal.FreeHGlobal(mem1);
         }
 
@@ -410,7 +417,10 @@ namespace Inviter
             }
             Log($"Invite in Eureka:{player.PlayerName}@{player.World.Name}");
             Int64 CID = name2CID[playerNameKey];
-            _EasierProcessEurekaInvite(uiInvite, CID);
+            lock (LockInviteObj)
+            {
+                _EasierProcessEurekaInvite(uiInvite, CID);
+            }
         }
         public char EasierProcessCIDDetour(Int64 a1, Int64 a2)
         {

@@ -12,19 +12,19 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">
-      <HintPath>..\..\..\Dalamud\Dalamud.Updater\bin\Release\6.0.0.0\Dalamud.dll</HintPath>
+      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Dalamud.dll</HintPath>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>..\..\..\Dalamud\Dalamud.Updater\bin\Release\6.0.0.0\ImGui.NET.dll</HintPath>
+      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\ImGui.NET.dll</HintPath>
     </Reference>
     <Reference Include="ImGuiScene">
-      <HintPath>..\..\..\Dalamud\Dalamud.Updater\bin\Release\6.0.0.0\ImGuiScene.dll</HintPath>
+      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\ImGuiScene.dll</HintPath>
     </Reference>
     <Reference Include="Lumina">
-      <HintPath>..\..\..\Dalamud\Dalamud.Updater\bin\Release\6.0.0.0\Lumina.dll</HintPath>
+      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Lumina.dll</HintPath>
     </Reference>
     <Reference Include="Lumina.Excel">
-      <HintPath>..\..\..\Dalamud\Dalamud.Updater\bin\Release\6.0.0.0\Lumina.Excel.dll</HintPath>
+      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Lumina.Excel.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>
