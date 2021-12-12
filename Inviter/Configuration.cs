@@ -22,6 +22,7 @@ namespace Inviter
         public bool PrintError = true;
         public bool Eureka = false;
         public int Delay = 200;
+        public int Ratelimit = 500;
 
         public List<ushort> FilteredChannels = new List<ushort>();
         public List<XivChatType> HiddenChatType = new List<XivChatType> {

@@ -94,6 +94,12 @@ namespace Inviter.Gui
             ImGui.SetNextItemWidth(150);
             if (ImGui.InputInt("##Delay", ref Config.Delay, 10, 100)) Config.Save();
 
+            ImGui.TextUnformatted(_localizer.Localize("Rate limit (ms):"));
+            if (Plugin.Config.ShowTooltips && ImGui.IsItemHovered())
+                ImGui.SetTooltip(_localizer.Localize("How much time must pass between invitations."));
+            ImGui.SetNextItemWidth(150);
+            if (ImGui.InputInt("##Delay", ref Config.Ratelimit, 10, 100)) Config.Save();
+
             if (ImGui.Checkbox(_localizer.Localize("Print Debug Message"), ref Config.PrintMessage)) Config.Save();
             if (ImGui.Checkbox(_localizer.Localize("Print Error Message"), ref Config.PrintError)) Config.Save();
 
