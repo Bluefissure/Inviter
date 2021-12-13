@@ -35,6 +35,8 @@ namespace Inviter
 
         private static object LockInviteObj = new object();
 
+        private ulong NextInviteAt = 0;
+
         private delegate IntPtr GetUIBaseDelegate();
         private delegate IntPtr GetUIModuleDelegate(IntPtr basePtr);
         private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, IntPtr name, Int16 world_id);
@@ -369,19 +371,28 @@ namespace Inviter
                             }
                         }
                     }
-                    if (Config.Eureka)
+                    var tc64 = Native.GetTickCount64();
+                    if (tc64 > NextInviteAt)
                     {
-                        Task.Run(() =>
+                        NextInviteAt = tc64 + (uint)Config.Ratelimit;
+                        if (Config.Eureka)
                         {
-                            ProcessEurekaInvite(playerPayload);
-                        });
+                            Task.Run(() =>
+                            {
+                                ProcessEurekaInvite(playerPayload);
+                            });
+                        }
+                        else
+                        {
+                            Task.Run(() =>
+                            {
+                                ProcessInvite(playerPayload);
+                            });
+                        }
                     }
                     else
                     {
-                        Task.Run(() =>
-                        {
-                            ProcessInvite(playerPayload);
-                        });
+                        Log($"Rate limiting invitation (next invite in {NextInviteAt - tc64} ms)");
                     }
                 }
             }

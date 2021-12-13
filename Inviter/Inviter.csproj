@@ -10,21 +10,25 @@
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
   </ItemGroup>
+	<PropertyGroup>
+		<DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+	</PropertyGroup>
   <ItemGroup>
-    <Reference Include="Dalamud">
-      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Dalamud.dll</HintPath>
-    </Reference>
-    <Reference Include="ImGui.NET">
-      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\ImGui.NET.dll</HintPath>
-    </Reference>
-    <Reference Include="ImGuiScene">
-      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\ImGuiScene.dll</HintPath>
-    </Reference>
-    <Reference Include="Lumina">
-      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Lumina.dll</HintPath>
-    </Reference>
-    <Reference Include="Lumina.Excel">
-      <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\dev\Lumina.Excel.dll</HintPath>
-    </Reference>
+	  <Reference Include="Dalamud">
+		  <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+		  <Private>False</Private>
+	  </Reference>
+	  <Reference Include="ImGui.NET">
+		  <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
+		  <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Lumina">
+		  <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+		  <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Lumina.Excel">
+		  <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+		  <Private>False</Private>
+	  </Reference>
   </ItemGroup>
 </Project>
