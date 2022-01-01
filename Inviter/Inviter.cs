@@ -23,6 +23,7 @@ using Dalamud.IoC;
 using GroupManager = Inviter.ClientStructs.GroupManager;
 using PartyMember = Inviter.ClientStructs.PartyMember;
 using Dalamud.Data;
+using Dalamud.Game.ClientState.Conditions;
 
 namespace Inviter
 {
@@ -72,6 +73,8 @@ namespace Inviter
         public static ToastGui ToastGui { get; private set; }
         [PluginService]
         public static ClientState ClientState { get; private set; }
+        [PluginService]
+        public static Condition Condition { get; private set; }
         [PluginService]
         public static DataManager Data { get; private set; }
 
@@ -130,7 +133,8 @@ namespace Inviter
             {
                 HelpMessage = "/xinvite - open the inviter panel.\n" +
                     "/xinvite <on/off> - turn the auto invite on/off.\n" +
-                    "/xinvite <integer> - enable auto invite in minutes."
+                    "/xinvite <minutes> - enable temporary auto invite for certain amount of time in minutes.\n" +
+                    "/xinvite <minutes> <attempts> - enable temporary auto invite for certain amount of time in minutes and finish it after certain amount of invite attempts.\n"
             });
             Gui = new PluginUi(this);
             ChatGui.ChatMessage += Chat_OnChatMessage;
@@ -209,9 +213,13 @@ namespace Inviter
                 }
                 Config.Save();
             }
-            else if (int.TryParse(args, out int timeInMinutes))
+            else if (timedRecruitment.TryProcessCommandTimedEnable(args))
             {
-                timedRecruitment.ProcessCommandTimedEnable(timeInMinutes);
+                //success
+            }
+            else if(CmdManager.Commands.TryGetValue("/xinvite", out var cmdInfo))
+            {
+                ChatGui.Print(cmdInfo.HelpMessage);
             }
             /*
             else if (args == "party")
@@ -321,6 +329,7 @@ namespace Inviter
             if (!Config.Enable) return;
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
             if (Config.HiddenChatType.IndexOf(type) != -1) return;
+            if (Condition[ConditionFlag.BetweenAreas] || Condition[ConditionFlag.BetweenAreas51]) return;
             var pattern = Config.TextPattern;
             bool matched = false;
             if (!Config.RegexMatch)
@@ -374,6 +383,20 @@ namespace Inviter
                     var tc64 = Native.GetTickCount64();
                     if (tc64 > NextInviteAt)
                     {
+                        if(timedRecruitment.isRunning && timedRecruitment.MaxInvitations > 0)
+                        {
+                            if(timedRecruitment.InvitationAttempts >= timedRecruitment.MaxInvitations)
+                            {
+                                Log($"Reached target amound of invitations, won't invite {timedRecruitment.InvitationAttempts}/{timedRecruitment.MaxInvitations}");
+                                timedRecruitment.runUntil = 0;
+                                return;
+                            }
+                            else
+                            {
+                                timedRecruitment.InvitationAttempts++;
+                                Log($"Invitation {timedRecruitment.InvitationAttempts} out of {timedRecruitment.MaxInvitations}");
+                            }
+                        }
                         NextInviteAt = tc64 + (uint)Config.Ratelimit;
                         if (Config.Eureka)
                         {
