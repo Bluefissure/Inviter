@@ -327,6 +327,7 @@ namespace Inviter
         private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
+            if (!Enum.IsDefined(typeof(XivChatType), type)) return;
             if (Config.FilteredChannels.IndexOf((ushort)type) != -1) return;
             if (Config.HiddenChatType.IndexOf(type) != -1) return;
             if (Condition[ConditionFlag.BetweenAreas] || Condition[ConditionFlag.BetweenAreas51]) return;
@@ -338,7 +339,7 @@ namespace Inviter
             }
             else
             {
-                Regex rx = new Regex(pattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                Regex rx = new Regex(pattern, RegexOptions.IgnoreCase);
                 matched = rx.Matches(message.TextValue).Count > 0;
             }
             if (matched)
