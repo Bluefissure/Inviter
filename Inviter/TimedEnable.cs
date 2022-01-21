@@ -13,9 +13,11 @@ namespace Inviter
     class TimedEnable
     {
         internal Inviter plugin;
-        internal long runUntil = 0;
-        internal long nextNotification = 0;
-        internal bool isRunning = false;
+        internal ulong runUntil = 0;
+        internal ulong nextNotification = 0;
+        internal volatile bool isRunning = false;
+        internal uint MaxInvitations = 0;
+        internal uint InvitationAttempts = 0;
         internal Localizer Localizer => plugin.Localizer;
 
         internal TimedEnable(Inviter plugin)
@@ -26,11 +28,11 @@ namespace Inviter
         internal void Run()
         {
             isRunning = true;
-            nextNotification = DateTimeOffset.Now.ToUnixTimeSeconds() + (runUntil - DateTimeOffset.Now.ToUnixTimeSeconds())/2;
+            nextNotification = Native.GetTickCount64() + (runUntil - Native.GetTickCount64())/2;
             try
             {
                 plugin.Config.Enable = true;
-                while (DateTimeOffset.Now.ToUnixTimeSeconds() < runUntil)
+                while (Native.GetTickCount64() < runUntil)
                 {
                     Thread.Sleep(1000);
                     if (!plugin.Config.Enable)
@@ -38,11 +40,11 @@ namespace Inviter
                         runUntil = 0;
                         break;
                     }
-                    if(DateTimeOffset.Now.ToUnixTimeSeconds() >= nextNotification && DateTimeOffset.Now.ToUnixTimeSeconds() < runUntil)
+                    if(Native.GetTickCount64() >= nextNotification && Native.GetTickCount64() < runUntil)
                     {
                         Inviter.ToastGui.ShowQuest(
                             String.Format(Localizer.Localize("Automatic recruitment enabled, {0} minutes left"),
-                            Math.Ceiling((runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 60d))
+                            Math.Ceiling((runUntil - Native.GetTickCount64()) / 60d / 1000d))
                             );
                         UpdateTimeNextNotification();
                     }
@@ -63,10 +65,26 @@ namespace Inviter
 
         internal void UpdateTimeNextNotification()
         {
-            nextNotification = DateTimeOffset.Now.ToUnixTimeSeconds() + Math.Max(60, (runUntil - DateTimeOffset.Now.ToUnixTimeSeconds()) / 2);
+            nextNotification = Native.GetTickCount64() + Math.Max(60 * 1000, (runUntil - Native.GetTickCount64()) / 2);
         }
 
-        internal void ProcessCommandTimedEnable(int timeInMinutes)
+        internal bool TryProcessCommandTimedEnable(string args)
+        {
+            var argsArray = args.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+            if(argsArray.Length == 2 && uint.TryParse(argsArray[0], out var time) && uint.TryParse(argsArray[1], out var limit))
+            {
+                ProcessCommandTimedEnable(time, limit);
+                return true;
+            }
+            else if(uint.TryParse(argsArray[0], out time))
+            {
+                ProcessCommandTimedEnable(time, 0);
+                return true;
+            }
+            return false;
+        }
+
+        void ProcessCommandTimedEnable(uint timeInMinutes, uint limit)
         {
             if (plugin.Config.Enable && !isRunning)
             {
@@ -78,10 +96,12 @@ namespace Inviter
             {
                 try
                 {
-                    var time = timeInMinutes;
+                    var time = timeInMinutes; 
+                    MaxInvitations = limit;
+                    InvitationAttempts = 0;
                     if (time > 0)
                     {
-                        runUntil = DateTimeOffset.Now.ToUnixTimeSeconds() + time * 60;
+                        runUntil = Native.GetTickCount64() + time * 60 * 1000;
                         if (isRunning) 
                         {
                             UpdateTimeNextNotification();
@@ -97,6 +117,16 @@ namespace Inviter
                                 DisplayCheckmark = true,
                                 PlaySound = true
                             });
+                        if(limit > 0)
+                        {
+                            Inviter.ToastGui.ShowQuest(
+                            String.Format(Localizer.Localize("Recruitment will finish after {0} invitation attempts"), limit)
+                            , new QuestToastOptions()
+                            {
+                                DisplayCheckmark = false,
+                                PlaySound = false
+                            });
+                        }
                     }
                     else if (time == 0)
                     {
