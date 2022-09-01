@@ -90,7 +90,7 @@ namespace Inviter
             ClientState.TerritoryChanged -= TerritoryChanged;
             CmdManager.RemoveHandler("/xinvite");
             Gui?.Dispose();
-            Interface?.Dispose();
+            // Interface?.Dispose();
         }
 
         public Inviter()
@@ -103,14 +103,14 @@ namespace Inviter
             var easierProcessCIDPtr = SigScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 08");
             getUIModulePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
             uiModulePtr = SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
-            InitUi();
             groupManagerAddress = SigScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? 44 8B E7");
+            InitUi();
             PluginLog.Log("===== I N V I T E R =====");
-            PluginLog.Log("Process Invite address {Address}", easierProcessInvitePtr);
-            PluginLog.Log("Process CID address {Address}", easierProcessCIDPtr);
-            PluginLog.Log("uiModule address {Address}", uiModule);
-            PluginLog.Log("uiInvite address {Address}", uiInvite);
-            PluginLog.Log("groupManager address {Address}", groupManagerAddress);
+            PluginLog.Log($"Process Invite address {easierProcessInvitePtr:X}");
+            PluginLog.Log($"Process CID address {easierProcessCIDPtr:X}");
+            PluginLog.Log($"uiModule address {uiModule:X}");
+            PluginLog.Log($"uiInvite address {uiInvite:X}");
+            PluginLog.Log($"groupManager address {groupManagerAddress:X}");
 
 
             //Log($"EurekaInvite:{easierProcessEurekaInvitePtr}");
@@ -237,7 +237,7 @@ namespace Inviter
             uiModule = GetUIModule(Marshal.ReadIntPtr(uiModulePtr));
             if (uiModule == IntPtr.Zero)
                 throw new ApplicationException("uiModule was null");
-            IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 264;
+            IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 272;
             PluginLog.Log($"step2:0x{step2:X}");
             if (step2 == IntPtr.Zero)
                 throw new ApplicationException("step2 was null");
@@ -245,12 +245,13 @@ namespace Inviter
             PluginLog.Log($"step3:0x{step3:X}");
             if (step3 == IntPtr.Zero)
                 throw new ApplicationException("step3 was null");
-            IntPtr step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6528;
+            IntPtr step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6536;
             PluginLog.Log($"step4:0x{step4:X}");
-            if (step4 == (IntPtr.Zero + 6528))
+            if (step4 == (IntPtr.Zero + 6536))
                 throw new ApplicationException("step4 was null");
             uiInvite = Marshal.ReadInt64(step4);
-            PluginLog.Log($"uiInvite:{uiInvite:X}");
+            if (uiInvite == 0)
+                throw new ApplicationException("uiInvite was 0");
         }
 
         public void Log(string message)
