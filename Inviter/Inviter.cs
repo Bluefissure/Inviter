@@ -24,6 +24,7 @@ using GroupManager = Inviter.ClientStructs.GroupManager;
 using PartyMember = Inviter.ClientStructs.PartyMember;
 using Dalamud.Data;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Plugin.Services;
 
 namespace Inviter
 {
@@ -58,25 +59,27 @@ namespace Inviter
         internal TimedEnable timedRecruitment;
 
         [PluginService]
-        public static CommandManager CmdManager { get; private set; }
+        public static ICommandManager CmdManager { get; private set; }
         [PluginService]
-        public static Framework Framework { get; private set; }
+        public static IFramework Framework { get; private set; }
         [PluginService]
-        public static SigScanner SigScanner { get; private set; }
+        public static ISigScanner SigScanner { get; private set; }
         [PluginService]
         public static DalamudPluginInterface Interface { get; private set; }
         [PluginService]
-        public static GameGui GameGui { get; private set; }
+        public static IGameGui GameGui { get; private set; }
         [PluginService]
-        public static ChatGui ChatGui { get; private set; }
+        public static IChatGui ChatGui { get; private set; }
         [PluginService]
-        public static ToastGui ToastGui { get; private set; }
+        public static IToastGui ToastGui { get; private set; }
         [PluginService]
-        public static ClientState ClientState { get; private set; }
+        public static IClientState ClientState { get; private set; }
         [PluginService]
-        public static Condition Condition { get; private set; }
+        public static ICondition Condition { get; private set; }
         [PluginService]
-        public static DataManager Data { get; private set; }
+        public static IDataManager Data { get; private set; }
+        [PluginService]
+        public static IGameInteropProvider Hook { get; private set; }
 
 
         public void Dispose()
@@ -125,7 +128,7 @@ namespace Inviter
                                                                                new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
                                                                                this);
             */
-            easierProcessCIDHook = new Hook<EasierProcessCIDDelegate>(easierProcessCIDPtr, new EasierProcessCIDDelegate(EasierProcessCIDDetour));
+            easierProcessCIDHook = Hook.HookFromAddress<EasierProcessCIDDelegate>(easierProcessCIDPtr, new EasierProcessCIDDelegate(EasierProcessCIDDetour));
             easierProcessCIDHook.Enable();
             //easierProcessEurekaInviteHook.Enable();
 
@@ -143,7 +146,7 @@ namespace Inviter
             timedRecruitment = new TimedEnable(this);
         }
 
-        private void TerritoryChanged(object sender, ushort e)
+        private void TerritoryChanged(ushort e)
         {
             List<ushort> eureka_territories = new List<ushort> { 732, 763, 795, 827, 920, 975 };
             if (eureka_territories.IndexOf(e) != -1)
