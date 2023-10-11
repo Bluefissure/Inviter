@@ -1,9 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30611.23
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34112.27
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inviter", "Inviter\Inviter.csproj", "{A1FE3EF5-BE42-4E6C-A4F6-1A1A72173451}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Inviter", "Inviter\Inviter.csproj", "{A1FE3EF5-BE42-4E6C-A4F6-1A1A72173451}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CDC8DDB9-0F3A-423C-8D3A-54CEBF88C1B6}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
