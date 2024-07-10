@@ -41,7 +41,7 @@ namespace Inviter
 
         private delegate IntPtr GetUIBaseDelegate();
         private delegate IntPtr GetUIModuleDelegate(IntPtr basePtr);
-        private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, IntPtr name, Int16 world_id);
+        private delegate char EasierProcessInviteDelegate(Int64 a1, Int64 a2, Int16 world_id, IntPtr name, char a5);
         private delegate char EasierProcessEurekaInviteDelegate(Int64 a1, Int64 a2);
         private delegate char EasierProcessCIDDelegate(Int64 a1, Int64 a2);
         private EasierProcessInviteDelegate _EasierProcessInvite;
@@ -50,8 +50,6 @@ namespace Inviter
         private Hook<EasierProcessCIDDelegate> easierProcessCIDHook;
         private GetUIModuleDelegate GetUIModule;
         private delegate IntPtr GetMagicUIDelegate(IntPtr basePtr);
-        private IntPtr getUIModulePtr;
-        private IntPtr uiModulePtr;
         private IntPtr uiModule;
         private Int64 uiInvite;
         private IntPtr groupManagerAddress;
@@ -65,7 +63,7 @@ namespace Inviter
         [PluginService]
         public static ISigScanner SigScanner { get; private set; }
         [PluginService]
-        public static DalamudPluginInterface Interface { get; private set; }
+        public static IDalamudPluginInterface Interface { get; private set; }
         [PluginService]
         public static IGameGui GameGui { get; private set; }
         [PluginService]
@@ -80,6 +78,8 @@ namespace Inviter
         public static IDataManager Data { get; private set; }
         [PluginService]
         public static IGameInteropProvider Hook { get; private set; }
+        [PluginService]
+        public static IPluginLog PluginLog { get; private set; }
 
 
         public void Dispose()
@@ -103,26 +103,24 @@ namespace Inviter
         {
             name2CID = new Dictionary<string, long> { };
             Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
-            Config.Initialize(Interface);
-            var easierProcessInvitePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? EB 3E 44 0F B7 83 ?? ?? ?? ??");
-            var easierProcessEurekaInvitePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0 74 62");
-            var easierProcessCIDPtr = SigScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 08");
-            getUIModulePtr = SigScanner.ScanText("E8 ?? ?? ?? ?? 48 83 7F ?? 00 48 8B F0");
-            uiModulePtr = SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 8D 54 24 ?? 48 83 C1 10 E8 ?? ?? ?? ??");
+            var InviteToPartyByName = SigScanner.ScanText("E8 ?? ?? ?? ?? EB CC CC");
+            var InviteToPartyInInstance = SigScanner.ScanText("E8 ?? ?? ?? ?? EB 71 48 8B 83 ?? ?? ?? ??");
+            var easierProcessCIDPtr = SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 78");
             groupManagerAddress = SigScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? 44 8B E7");
             InitUi();
-            PluginLog.Log("===== I N V I T E R =====");
-            PluginLog.Log($"Process Invite address {easierProcessInvitePtr:X}");
-            PluginLog.Log($"Process CID address {easierProcessCIDPtr:X}");
-            PluginLog.Log($"uiModule address {uiModule:X}");
-            PluginLog.Log($"uiInvite address {uiInvite:X}");
-            PluginLog.Log($"groupManager address {groupManagerAddress:X}");
+            PluginLog.Info("===== I N V I T E R =====");
+            PluginLog.Info($"InviteToPartyByName address {InviteToPartyByName:X}");
+            PluginLog.Info($"InviteToPartyInInstance address {InviteToPartyInInstance:X}");
+            PluginLog.Info($"Process CID address {easierProcessCIDPtr:X}");
+            PluginLog.Info($"uiModule address {uiModule:X}");
+            PluginLog.Info($"uiInvite address {uiInvite:X}");
+            PluginLog.Info($"groupManager address {groupManagerAddress:X}");
 
 
             //Log($"EurekaInvite:{easierProcessEurekaInvitePtr}");
             //Interface.Framework.Gui.Chat.OnChatMessageRaw += Chat_OnChatMessageRaw;
-            _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(easierProcessInvitePtr);
-            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(easierProcessEurekaInvitePtr);
+            _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(InviteToPartyByName);
+            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(InviteToPartyInInstance);
             /*
             easierProcessEurekaInviteHook = new Hook<EasierProcessEurekaInviteDelegate>(easierProcessEurekaInvitePtr,
                                                                                new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
@@ -244,20 +242,19 @@ namespace Inviter
         }
         private void InitUi()
         {
-            GetUIModule = Marshal.GetDelegateForFunctionPointer<GetUIModuleDelegate>(getUIModulePtr);
-            uiModule = GetUIModule(Marshal.ReadIntPtr(uiModulePtr));
+            uiModule = GameGui.GetUIModule();
             if (uiModule == IntPtr.Zero)
                 throw new ApplicationException("uiModule was null");
-            IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 272;
-            PluginLog.Log($"step2:0x{step2:X}");
+            IntPtr step2 = Marshal.ReadIntPtr(uiModule) + 280;
+            PluginLog.Info($"step2:0x{step2:X}");
             if (step2 == IntPtr.Zero)
                 throw new ApplicationException("step2 was null");
             IntPtr step3 = Marshal.ReadIntPtr(step2);
-            PluginLog.Log($"step3:0x{step3:X}");
+            PluginLog.Info($"step3:0x{step3:X}");
             if (step3 == IntPtr.Zero)
                 throw new ApplicationException("step3 was null");
             IntPtr step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6536;
-            PluginLog.Log($"step4:0x{step4:X}");
+            PluginLog.Info($"step4:0x{step4:X}");
             if (step4 == (IntPtr.Zero + 6536))
                 throw new ApplicationException("step4 was null");
             uiInvite = Marshal.ReadInt64(step4);
@@ -269,14 +266,14 @@ namespace Inviter
         {
             if (!Config.PrintMessage) return;
             var msg = $"[{Name}] {message}";
-            PluginLog.Log(msg);
+            PluginLog.Info(msg);
             ChatGui.Print(msg);
         }
         public void LogError(string message)
         {
             if (!Config.PrintError) return;
             var msg = $"[{Name}] {message}";
-            PluginLog.LogError(msg);
+            PluginLog.Error(msg);
             ChatGui.PrintError(msg);
         }
         private void Chat_OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
@@ -328,7 +325,7 @@ namespace Inviter
             Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
             return Encoding.UTF8.GetString(buffer);
         }
-        private void Chat_OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
+        private void Chat_OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
             if (!Config.Enable) return;
             if (!Enum.IsDefined(typeof(XivChatType), type)) return;
@@ -439,7 +436,7 @@ namespace Inviter
             Marshal.WriteByte(mem1, player_bytes.Length, 0);
             lock (LockInviteObj)
             {
-                _EasierProcessInvite(uiInvite, 0, mem1, (short)player.World.RowId);
+                _EasierProcessInvite(uiInvite, 0, (short)player.World.RowId, mem1, (char)1);
             }
             Marshal.FreeHGlobal(mem1);
         }
@@ -473,10 +470,10 @@ namespace Inviter
             */
             if (Config.Enable && Config.Eureka && dataPtr != IntPtr.Zero)
             {
-                Int64 CID = Marshal.ReadInt64(dataPtr);
-                short world_id = Marshal.ReadInt16(dataPtr, 12);
+                Int64 CID = Marshal.ReadInt64(dataPtr, 8);
+                short world_id = Marshal.ReadInt16(dataPtr, 20);
                 var world = Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>().GetRow((uint)world_id);
-                string name = StringFromNativeUtf8(dataPtr + 16);
+                string name = StringFromNativeUtf8(dataPtr + 24);
                 Log($"{name}@{world.Name}:{CID}");
                 string playerNameKey = $"{name}@{world_id}";
                 if (!name2CID.ContainsKey(playerNameKey))

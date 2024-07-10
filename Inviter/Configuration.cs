@@ -39,16 +39,10 @@ namespace Inviter
 
         #region Init and Save
 
-        [NonSerialized] private DalamudPluginInterface _pluginInterface;
-
-        public void Initialize(DalamudPluginInterface pluginInterface)
-        {
-            _pluginInterface = pluginInterface;
-        }
 
         public void Save()
         {
-            _pluginInterface.SavePluginConfig(this);
+            Inviter.Interface.SavePluginConfig(this);
         }
 
         #endregion
