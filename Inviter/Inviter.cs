@@ -10,19 +10,14 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
-using Dalamud.Game.ClientState;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Dalamud.Hooking;
 using Dalamud.Game;
-using Dalamud.Game.Gui;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Network;
-using Dalamud.Logging;
 using Dalamud.IoC;
-using GroupManager = Inviter.ClientStructs.GroupManager;
-using PartyMember = Inviter.ClientStructs.PartyMember;
-using Dalamud.Data;
+using GroupManager = FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 
@@ -133,7 +128,7 @@ namespace Inviter
             CmdManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
                 HelpMessage = "/xinvite - open the inviter panel.\n" +
-                    "/xinvite <on/off> - turn the auto invite on/off.\n" +
+                    "/xinvite <on/off/toggle> - turn the auto invite on/off.\n" +
                     "/xinvite <minutes> - enable temporary auto invite for certain amount of time in minutes.\n" +
                     "/xinvite <minutes> <attempts> - enable temporary auto invite for certain amount of time in minutes and finish it after certain amount of invite attempts.\n"
             });
@@ -191,6 +186,21 @@ namespace Inviter
                 });
                 Config.Save();
             }
+            else if (args == "party")
+            {
+                unsafe
+                {
+                    GroupManager* groupManager = (GroupManager*)groupManagerAddress;
+                    var group = groupManager->GetGroup();
+                    var leader = group->GetPartyMemberByIndex((int)group->PartyLeaderIndex);
+                    string leaderName = ConvertSpanToString(leader->Name);
+                    Log($"MemberCount:{group->MemberCount}");
+                    Log($"LeaderIndex:{group->PartyLeaderIndex}");
+                    Log($"LeaderName:{leaderName}");
+                    Log($"SelfName:{ClientState.LocalPlayer.Name.ToString()}");
+                    Log($"isLeader:{ClientState.LocalPlayer.Name.ToString() == leaderName}");
+                }
+            }
             else if (args == "toggle")
             {
                 Config.Enable = !Config.Enable;
@@ -222,23 +232,6 @@ namespace Inviter
             {
                 ChatGui.Print(cmdInfo.HelpMessage);
             }
-            /*
-            else if (args == "party")
-            {
-                unsafe
-                {
-                    GroupManager* groupManager = (GroupManager*)groupManagerAddress;
-                    var partyMembers = (PartyMember*)groupManager->PartyMembers;
-                    var leader = partyMembers[groupManager->PartyLeaderIndex];
-                    string leaderName = StringFromNativeUtf8(new IntPtr(leader.Name));
-                    Log($"MemberCount:{groupManager->MemberCount}");
-                    Log($"LeaderIndex:{groupManager->PartyLeaderIndex}");
-                    Log($"LeaderName:{leaderName}");
-                    Log($"SelfName:{Interface.ClientState.LocalPlayer.Name}");
-                    Log($"isLeader:{Interface.ClientState.LocalPlayer.Name == leaderName}");
-                }
-            }
-            */
         }
         private void InitUi()
         {
@@ -307,6 +300,22 @@ namespace Inviter
             }
             */
         }
+
+        public static string ConvertSpanToString(Span<byte> byteSpan)
+        {
+            int length = 0;
+
+            for (int i = 0; i < byteSpan.Length; i++)
+            {
+                if (byteSpan[i] == 0)
+                {
+                    break;
+                }
+                length++;
+            }
+
+            return Encoding.UTF8.GetString(byteSpan.Slice(0, length));
+        }
         public static IntPtr NativeUtf8FromString(string managedString)
         {
             int len = Encoding.UTF8.GetByteCount(managedString);
@@ -355,7 +364,8 @@ namespace Inviter
                         unsafe
                         {
                             GroupManager* groupManager = (GroupManager*)groupManagerAddress;
-                            if (groupManager->MemberCount >= 8)
+                            var group = groupManager->GetGroup();
+                            if (group->MemberCount >= 8)
                             {
                                 Log($"Full party, won't invite.");
                                 if (timedRecruitment.isRunning)
@@ -366,11 +376,10 @@ namespace Inviter
                             }
                             else
                             {
-                                if (groupManager->MemberCount > 0)
+                                if (group->MemberCount > 0)
                                 {
-                                    var partyMembers = (PartyMember*)groupManager->PartyMembers;
-                                    var leader = partyMembers[groupManager->PartyLeaderIndex];
-                                    string leaderName = StringFromNativeUtf8(new IntPtr(leader.Name));
+                                    var leader = group->GetPartyMemberByIndex((int)group->PartyLeaderIndex);
+                                    string leaderName = ConvertSpanToString(leader->Name);
 
                                     if (ClientState.LocalPlayer.Name.ToString() != leaderName)
                                     {
@@ -378,7 +387,7 @@ namespace Inviter
                                         return;
                                     }
                                 }
-                                Log($"Party Count:{groupManager->MemberCount}");
+                                Log($"Party Count:{group->MemberCount}");
                             }
                         }
                     }
