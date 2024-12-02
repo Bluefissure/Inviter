@@ -98,8 +98,8 @@ namespace Inviter
         {
             name2CID = new Dictionary<string, long> { };
             Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
-            var InviteToPartyByName = SigScanner.ScanText("E8 ?? ?? ?? ?? EB CC CC");
-            var InviteToPartyInInstance = SigScanner.ScanText("E8 ?? ?? ?? ?? 4C 8B 65 ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ??");
+            var InviteToPartyByName = SigScanner.ScanText("E8 ?? ?? ?? ?? EB B0 CC");
+            var InviteToPartyInInstanceByContentId = SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0");
             nint easierProcessCIDPtr;
             try
             {
@@ -112,7 +112,7 @@ namespace Inviter
             InitUi();
             PluginLog.Info("===== I N V I T E R =====");
             PluginLog.Info($"InviteToPartyByName address {InviteToPartyByName:X}");
-            PluginLog.Info($"InviteToPartyInInstance address {InviteToPartyInInstance:X}");
+            PluginLog.Info($"InviteToPartyInInstance address {InviteToPartyInInstanceByContentId:X}");
             PluginLog.Info($"Process CID address {easierProcessCIDPtr:X}");
             PluginLog.Info($"uiModule address {uiModule:X}");
             PluginLog.Info($"uiInvite address {uiInvite:X}");
@@ -122,7 +122,7 @@ namespace Inviter
             //Log($"EurekaInvite:{easierProcessEurekaInvitePtr}");
             //Interface.Framework.Gui.Chat.OnChatMessageRaw += Chat_OnChatMessageRaw;
             _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(InviteToPartyByName);
-            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(InviteToPartyInInstance);
+            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(InviteToPartyInInstanceByContentId);
             /*
             easierProcessEurekaInviteHook = new Hook<EasierProcessEurekaInviteDelegate>(easierProcessEurekaInvitePtr,
                                                                                new EasierProcessEurekaInviteDelegate(EasierProcessEurekaInviteDetour),
@@ -444,7 +444,7 @@ namespace Inviter
         {
             int delay = Math.Max(0, Config.Delay);
             Thread.Sleep(delay);
-            Log($"Invite:{player.PlayerName}@{player.World.Name}");
+            Log($"Invite:{player.PlayerName}@{player.World.Value.Name}");
             string player_name = player.PlayerName;
             var player_bytes = Encoding.UTF8.GetBytes(player_name);
             IntPtr mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
@@ -464,10 +464,10 @@ namespace Inviter
             string playerNameKey = $"{player.PlayerName}@{player.World.RowId}";
             if (!name2CID.ContainsKey(playerNameKey))
             {
-                LogError($"Unable to get CID:{player.PlayerName}@{player.World.Name}");
+                LogError($"Unable to get CID:{player.PlayerName}@{player.World.Value.Name}");
                 return;
             }
-            Log($"Invite in Eureka:{player.PlayerName}@{player.World.Name}");
+            Log($"Invite in Eureka:{player.PlayerName}@{player.World.Value.Name}");
             Int64 CID = name2CID[playerNameKey];
             lock (LockInviteObj)
             {
@@ -488,7 +488,7 @@ namespace Inviter
             {
                 Int64 CID = Marshal.ReadInt64(dataPtr, 8);
                 short world_id = Marshal.ReadInt16(dataPtr, 20);
-                var world = Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>().GetRow((uint)world_id);
+                var world = Data.GetExcelSheet<Lumina.Excel.Sheets.World>().GetRow((uint)world_id);
                 string name = StringFromNativeUtf8(dataPtr + 24);
                 Log($"{name}@{world.Name}:{CID}");
                 string playerNameKey = $"{name}@{world_id}";
