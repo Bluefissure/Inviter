@@ -1,5 +1,4 @@
-﻿using Dalamud.Game;
-using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Text;
@@ -7,18 +6,15 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
-using Dalamud.IoC;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.UI.Info;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using GroupManager = FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager;
 
@@ -27,77 +23,27 @@ namespace Inviter
     public class Inviter : IDalamudPlugin
     {
         public static Inviter Plugin;
+        public Configuration Config { get; private set; }
         public Localizer localizer;
+        public TimedEnable timedRecruitment;
         public WindowSystem WindowSystem = new("Inviter");
         public ConfigurationWindow ConfigurationWindow;
-        public Configuration Config { get; private set; }
 
-        private readonly Lock LockInviteObj = new();
         private long NextInviteAt = 0;
+        private Hook<RaptureLogModule.Delegates.AddMsgSourceEntry> MsgHook;
 
-        private delegate char EasierProcessInviteDelegate(ulong a1, ulong a2, ushort world_id, nint name, char a5);
-        private readonly EasierProcessInviteDelegate _EasierProcessInvite;
-
-        private delegate char EasierProcessEurekaInviteDelegate(ulong a1, ulong a2);
-        private readonly EasierProcessEurekaInviteDelegate _EasierProcessEurekaInvite;
-
-        private delegate char EasierProcessCIDDelegate(nint a1, nint a2);
-        private readonly Hook<EasierProcessCIDDelegate> easierProcessCIDHook;
-
-        private delegate nint GetMagicUIDelegate(nint basePtr);
-        private nint uiModule;
-        private ulong uiInvite;
-        private readonly Dictionary<string, long> name2CID = [];
-        public TimedEnable timedRecruitment;
-        private readonly List<uint> eureka_territories = [732, 763, 795, 827, 920, 975, 1252];
-        [PluginService]
-        public static ICommandManager CmdManager { get; private set; } = null!;
-        [PluginService]
-        public static ISigScanner SigScanner { get; private set; } = null!;
-        [PluginService]
-        public static IDalamudPluginInterface Interface { get; private set; } = null!;
-        [PluginService]
-        public static IGameGui GameGui { get; private set; } = null!;
-        [PluginService]
-        public static IChatGui ChatGui { get; private set; } = null!;
-        [PluginService]
-        public static IToastGui ToastGui { get; private set; } = null!;
-        [PluginService]
-        public static IClientState ClientState { get; private set; } = null!;
-        [PluginService]
-        public static ICondition Condition { get; private set; } = null!;
-        [PluginService]
-        public static IDataManager Data { get; private set; } = null!;
-        [PluginService]
-        public static IGameInteropProvider Hook { get; private set; } = null!;
-        [PluginService]
-        public static IPluginLog PluginLog { get; private set; } = null!;
-
-        public Inviter()
+        public unsafe Inviter(IDalamudPluginInterface PluginInterface)
         {
             Plugin = this;
-            Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
+            Svc.Init(PluginInterface);
+            Config = Svc.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             localizer = new Localizer(Config.UILanguage);
+            timedRecruitment = new();
 
-            var InviteToPartyByName = SigScanner.ScanText("E8 ?? ?? ?? ?? EB B0 CC");
-            _EasierProcessInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessInviteDelegate>(InviteToPartyByName);
+            MsgHook = Svc.Hook.HookFromAddress<RaptureLogModule.Delegates.AddMsgSourceEntry>(RaptureLogModule.MemberFunctionPointers.AddMsgSourceEntry, MsgHookDetour);
+            MsgHook.Enable();
 
-            var InviteToPartyInInstanceByContentId = SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 83 ?? ?? ?? ?? 48 85 C0");
-            _EasierProcessEurekaInvite = Marshal.GetDelegateForFunctionPointer<EasierProcessEurekaInviteDelegate>(InviteToPartyInInstanceByContentId);
-
-            var easierProcessCIDPtr = SigScanner.ScanText("40 53 48 83 EC 20 48 8B DA 48 8D 0D ?? ?? ?? ?? 8B 52 10 E8 ?? ?? ?? ?? 48 85 C0 74 30");
-            easierProcessCIDHook = Hook.HookFromAddress<EasierProcessCIDDelegate>(easierProcessCIDPtr, EasierProcessCIDDetour);
-            easierProcessCIDHook.Enable();
-
-            InitUi();
-            PluginLog.Info("===== I N V I T E R =====");
-            PluginLog.Info($"InviteToPartyByName address {InviteToPartyByName:X}");
-            PluginLog.Info($"InviteToPartyInInstance address {InviteToPartyInInstanceByContentId:X}");
-            PluginLog.Info($"Process CID address {easierProcessCIDPtr:X}");
-            PluginLog.Info($"uiModule address {uiModule:X}");
-            PluginLog.Info($"uiInvite address {uiInvite:X}");
-
-            CmdManager.AddHandler("/xinvite", new CommandInfo(CommandHandler)
+            Svc.Commands.AddHandler("/xinvite", new CommandInfo(CommandHandler)
             {
                 HelpMessage = "/xinvite - open the inviter panel.\n" +
                     "/xinvite <on/off/toggle> - turn the auto invite on/off.\n" +
@@ -106,217 +52,84 @@ namespace Inviter
             });
             ConfigurationWindow = new();
             WindowSystem.AddWindow(ConfigurationWindow);
-            Interface.UiBuilder.Draw += WindowSystem.Draw;
-            Interface.UiBuilder.OpenMainUi += ConfigurationWindow.Toggle;
-            Interface.UiBuilder.OpenConfigUi += ConfigurationWindow.Toggle;
+            Svc.PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+            Svc.PluginInterface.UiBuilder.OpenMainUi += ConfigurationWindow.Toggle;
+            Svc.PluginInterface.UiBuilder.OpenConfigUi += ConfigurationWindow.Toggle;
 
-            ChatGui.ChatMessage += Chat_OnChatMessage;
-            ClientState.TerritoryChanged += TerritoryChanged;
-            timedRecruitment = new();
         }
 
         public void Dispose()
         {
             timedRecruitment.FinishTimer();
-            ChatGui.ChatMessage -= Chat_OnChatMessage;
-            ClientState.TerritoryChanged -= TerritoryChanged;
-            Interface.UiBuilder.Draw -= WindowSystem.Draw;
-            Interface.UiBuilder.OpenMainUi -= ConfigurationWindow.Toggle;
-            Interface.UiBuilder.OpenConfigUi -= ConfigurationWindow.Toggle;
+            MsgHook.Dispose();
+            Svc.PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            Svc.PluginInterface.UiBuilder.OpenMainUi -= ConfigurationWindow.Toggle;
+            Svc.PluginInterface.UiBuilder.OpenConfigUi -= ConfigurationWindow.Toggle;
             WindowSystem.RemoveAllWindows();
-            CmdManager.RemoveHandler("/xinvite");
-            easierProcessCIDHook.Dispose();
+            Svc.Commands.RemoveHandler("/xinvite");
         }
 
-        private void TerritoryChanged(ushort e)
+        private unsafe void MsgHookDetour(RaptureLogModule* thisPtr, ulong contentId, ulong accountId, int messageIndex, ushort worldId, ushort chatType)
         {
-            name2CID.Clear();
-        }
+            MsgHook.Original(thisPtr, contentId, accountId, messageIndex, worldId, chatType);
 
-        public unsafe void CommandHandler(string command, string arguments)
-        {
-            var args = arguments.Trim().Replace("\"", string.Empty);
-
-            if (string.IsNullOrEmpty(args) || args.Equals("config", StringComparison.OrdinalIgnoreCase))
-            {
-                ConfigurationWindow.Toggle();
-                return;
-            }
-            else if (args == "on")
-            {
-                Config.Enable = true;
-                ToastGui.ShowQuest(string.Format(localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern),
-                    new QuestToastOptions
-                    {
-                        DisplayCheckmark = true,
-                        PlaySound = true
-                    });
-                Config.Save();
-            }
-            else if (args == "off")
-            {
-                Config.Enable = false;
-                ToastGui.ShowQuest(localizer.Localize("Auto invite is turned off"),
-                    new QuestToastOptions
-                    {
-                        DisplayCheckmark = true,
-                        PlaySound = true
-                    });
-                Config.Save();
-            }
-            else if (args == "party")
-            {
-                Log($"MemberCount:{GroupManager.Instance()->MainGroup.MemberCount}");
-                Log($"LeaderIndex:{GroupManager.Instance()->MainGroup.PartyLeaderIndex}");
-                if (GroupManager.Instance()->MainGroup.MemberCount > 0)
-                    Log($"LeaderName:{ConvertSpanToString(GroupManager.Instance()->MainGroup.GetPartyMemberByIndex((int)GroupManager.Instance()->MainGroup.PartyLeaderIndex)->Name)}");
-                Log($"SelfName:{ClientState.LocalPlayer?.Name}");
-                Log($"isLeader:{GroupManager.Instance()->MainGroup.PartyLeaderIndex == 0}");
-            }
-            else if (args == "toggle")
-            {
-                Config.Enable = !Config.Enable;
-                if (Config.Enable)
-                {
-                    ToastGui.ShowQuest(string.Format(localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern),
-                        new QuestToastOptions
-                        {
-                            DisplayCheckmark = true,
-                            PlaySound = true
-                        });
-                }
-                else
-                {
-                    ToastGui.ShowQuest(localizer.Localize("Auto invite is turned off"),
-                        new QuestToastOptions
-                        {
-                            DisplayCheckmark = true,
-                            PlaySound = true
-                        });
-                }
-                Config.Save();
-            }
-            else if (timedRecruitment.TryProcessCommandTimedEnable(args))
-            {
-                //success
-            }
-            else if (CmdManager.Commands.TryGetValue("/xinvite", out var cmdInfo))
-            {
-                ChatGui.Print(cmdInfo.HelpMessage);
-            }
-        }
-
-        private void InitUi()
-        {
-            uiModule = GameGui.GetUIModule();
-            if (uiModule == nint.Zero)
-                throw new ApplicationException("uiModule was null");
-            nint step2 = Marshal.ReadIntPtr(uiModule) + 280;
-            PluginLog.Info($"step2:0x{step2:X}");
-            if (step2 == nint.Zero)
-                throw new ApplicationException("step2 was null");
-            nint step3 = Marshal.ReadIntPtr(step2);
-            PluginLog.Info($"step3:0x{step3:X}");
-            if (step3 == nint.Zero)
-                throw new ApplicationException("step3 was null");
-            nint step4 = Marshal.GetDelegateForFunctionPointer<GetMagicUIDelegate>(step3)(uiModule) + 6536;
-            PluginLog.Info($"step4:0x{step4:X}");
-            if (step4 == (nint.Zero + 6536))
-                throw new ApplicationException("step4 was null");
-            uiInvite = (ulong)Marshal.ReadInt64(step4);
-            if (uiInvite == 0)
-                throw new ApplicationException("uiInvite was 0");
-        }
-
-        public void Log(string message)
-        {
-            if (!Config.PrintMessage)
-                return;
-            var msg = $"[Inviter] {message}";
-            PluginLog.Info(msg);
-            ChatGui.Print(msg);
-        }
-
-        public void LogError(string message)
-        {
-            if (!Config.PrintError)
-                return;
-            var msg = $"[Inviter] {message}";
-            PluginLog.Error(msg);
-            ChatGui.PrintError(msg);
-        }
-
-        public static string ConvertSpanToString(Span<byte> byteSpan)
-        {
-            int length = 0;
-
-            for (int i = 0; i < byteSpan.Length; i++)
-            {
-                if (byteSpan[i] == 0)
-                {
-                    break;
-                }
-                length++;
-            }
-
-            return Encoding.UTF8.GetString(byteSpan[..length]);
-        }
-
-        public static string StringFromNativeUtf8(nint nativeUtf8)
-        {
-            int len = 0;
-            while (Marshal.ReadByte(nativeUtf8, len) != 0)
-                ++len;
-            byte[] buffer = new byte[len];
-            Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
-            return Encoding.UTF8.GetString(buffer);
-        }
-
-        private unsafe void Chat_OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
-        {
             if (!Config.Enable)
                 return;
-            if (Config.FilteredChannels.Contains(type))
+            if (Config.FilteredChannels.Contains((XivChatType)chatType))
                 return;
-            if (Config.HiddenChatType.Contains(type))
+            if (Config.HiddenChatType.Contains((XivChatType)chatType))
                 return;
-            if (Condition[ConditionFlag.BetweenAreas] || Condition[ConditionFlag.BetweenAreas51])
+            if (Svc.ClientState.LocalPlayer == null || Svc.Condition[ConditionFlag.BetweenAreas] || Svc.Condition[ConditionFlag.BetweenAreas51])
                 return;
-            bool matched = false;
+
+            if (GroupManager.Instance()->GetGroup()->MemberCount >= 8)
+            {
+                Log("Skipping invite: party full.");
+                if (timedRecruitment.isRunning)
+                    timedRecruitment.FinishTimer();
+                return;
+            }
+
+            if (GroupManager.Instance()->GetGroup()->MemberCount > 0 && !GroupManager.Instance()->MainGroup.IsEntityIdPartyLeader(Svc.ClientState.LocalPlayer!.EntityId))
+            {
+                Log("Skipping invite: not party leader.");
+                return;
+            }
+
+            if (!RaptureLogModule.Instance()->GetLogMessageDetail(messageIndex, out var sender, out var rawMessage, out _, out _, out _, out _))
+            {
+                Log("Skipping invite: unable to get message detail.");
+                return;
+            }
+
+            if (Svc.Party.Any(p => p.ContentId == (long)contentId))
+            {
+                Log("Skipping invite: already in party.");
+                return;
+            }
+
+            var message = SeString.Parse(rawMessage.AsSpan()).TextValue;
+            var matched = false;
             if (!Config.RegexMatch)
             {
-                matched = message.TextValue.Contains(Config.TextPattern, StringComparison.CurrentCulture);
+                matched = message.Contains(Config.TextPattern, StringComparison.OrdinalIgnoreCase);
             }
             else
             {
-                Regex rx = new(Config.TextPattern, RegexOptions.IgnoreCase);
-                matched = rx.Matches(message.TextValue).Count > 0;
+                try
+                {
+                    matched = Regex.Match(message, Config.TextPattern, RegexOptions.IgnoreCase).Success;
+                }
+                catch (Exception)
+                {
+                    LogError("Skipping invite: invalid regex pattern.");
+                    return;
+                }
             }
             if (matched)
             {
-                var senderPayload = sender.Payloads.Where(payload => payload is PlayerPayload).FirstOrDefault();
-                if (senderPayload != null && senderPayload is PlayerPayload player)
+                if (SeString.Parse(sender.AsSpan()).Payloads.FirstOrDefault(p => p is PlayerPayload) is PlayerPayload playerPayload)
                 {
-                    if (GroupManager.Instance()->MainGroup.MemberCount >= 8)
-                    {
-                        Log($"Full party, won't invite.");
-                        if (timedRecruitment.isRunning)
-                            timedRecruitment.FinishTimer();
-                        return;
-                    }
-                    else
-                    {
-                        if (GroupManager.Instance()->MainGroup.MemberCount > 0)
-                        {
-                            var leader = GroupManager.Instance()->MainGroup.GetPartyMemberByIndex((int)GroupManager.Instance()->MainGroup.PartyLeaderIndex);
-                            if (ClientState.LocalPlayer?.Name.TextValue != leader->NameString)
-                            {
-                                Log($"Not leader, won't invite. (Leader: {leader->NameString})");
-                                return;
-                            }
-                        }
-                        Log($"Party Count:{GroupManager.Instance()->MainGroup.MemberCount}");
-                    }
                     var tc64 = Environment.TickCount64;
                     if (tc64 > NextInviteAt)
                     {
@@ -335,67 +148,144 @@ namespace Inviter
                             }
                         }
                         NextInviteAt = tc64 + Config.Ratelimit;
-                        if (eureka_territories.Contains(GameMain.Instance()->CurrentTerritoryTypeId))
-                            Task.Run(() => InviteByCID(player));
+                        Log($"Attempting to invite {playerPayload.PlayerName}");
+                        if (InInvitableInstance())
+                        {
+                            Log($"Inviting {playerPayload.PlayerName} to instanced party.");
+                            Task.Run(() =>
+                            {
+                                Task.Delay(Math.Max(0, Config.Delay));
+                                InfoProxyPartyInvite.Instance()->InviteToPartyInInstanceByContentId(contentId);
+                            });
+                        }
                         else
-                            Task.Run(() => InviteByName(player));
-                    }
-                    else
-                    {
-                        Log($"Rate limiting invitation (next invite in {NextInviteAt - tc64} ms)");
+                        {
+                            Log($"Inviting {playerPayload.PlayerName} to non-instanced party.");
+                            Task.Run(() =>
+                            {
+                                Task.Delay(Math.Max(0, Config.Delay));
+                                fixed (byte* namePtr = ToTerminatedBytes(playerPayload.PlayerName))
+                                    InfoProxyPartyInvite.Instance()->InviteToParty(contentId, namePtr, (ushort)playerPayload.World.RowId);
+                            });
+                        }
                     }
                 }
             }
         }
 
-        public void InviteByName(PlayerPayload player)
+        public unsafe void CommandHandler(string command, string arguments)
         {
-            int delay = Math.Max(0, Config.Delay);
-            Thread.Sleep(delay);
-            Log($"Invite:{player.PlayerName}@{player.World.Value.Name}");
-            string player_name = player.PlayerName;
-            var player_bytes = Encoding.UTF8.GetBytes(player_name);
-            nint mem1 = Marshal.AllocHGlobal(player_bytes.Length + 1);
-            Marshal.Copy(player_bytes, 0, mem1, player_bytes.Length);
-            Marshal.WriteByte(mem1, player_bytes.Length, 0);
-            lock (LockInviteObj)
-            {
-                _EasierProcessInvite(uiInvite, 0, (ushort)player.World.RowId, mem1, (char)1);
-            }
-            Marshal.FreeHGlobal(mem1);
-        }
+            var args = arguments.Trim().Replace("\"", string.Empty);
 
-        public void InviteByCID(PlayerPayload player)
-        {
-            int delay = Math.Max(500, Config.Delay); // 500ms to make sure the name2CID is updated
-            Thread.Sleep(delay);
-            string playerNameKey = $"{player.PlayerName}@{player.World.RowId}";
-            if (!name2CID.TryGetValue(playerNameKey, out var CID))
+            if (string.IsNullOrEmpty(args) || args.Equals("config", StringComparison.OrdinalIgnoreCase))
             {
-                LogError($"Unable to get CID:{player.PlayerName}@{player.World.Value.Name}");
+                ConfigurationWindow.Toggle();
                 return;
             }
-            Log($"Invite in Eureka:{player.PlayerName}@{player.World.Value.Name}");
-            lock (LockInviteObj)
+            else if (args == "on")
             {
-                _EasierProcessEurekaInvite(uiInvite, (ulong)CID);
+                Config.Enable = true;
+                Svc.Toasts.ShowQuest(string.Format(localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern),
+                    new QuestToastOptions
+                    {
+                        DisplayCheckmark = true,
+                        PlaySound = true
+                    });
+                Config.Save();
+            }
+            else if (args == "off")
+            {
+                Config.Enable = false;
+                Svc.Toasts.ShowQuest(localizer.Localize("Auto invite is turned off"),
+                    new QuestToastOptions
+                    {
+                        DisplayCheckmark = true,
+                        PlaySound = true
+                    });
+                Config.Save();
+            }
+            else if (args == "party")
+            {
+                Log($"MemberCount:{GroupManager.Instance()->MainGroup.MemberCount}");
+                Log($"LeaderIndex:{GroupManager.Instance()->MainGroup.PartyLeaderIndex}");
+                if (GroupManager.Instance()->MainGroup.MemberCount > 0)
+                    Log($"LeaderName:{ConvertSpanToString(GroupManager.Instance()->MainGroup.GetPartyMemberByIndex((int)GroupManager.Instance()->MainGroup.PartyLeaderIndex)->Name)}");
+                Log($"SelfName:{Svc.ClientState.LocalPlayer?.Name}");
+                Log($"isLeader:{GroupManager.Instance()->MainGroup.PartyLeaderIndex == 0}");
+            }
+            else if (args == "toggle")
+            {
+                Config.Enable = !Config.Enable;
+                if (Config.Enable)
+                {
+                    Svc.Toasts.ShowQuest(string.Format(localizer.Localize("Auto invite is turned on for \"{0}\""), Config.TextPattern),
+                        new QuestToastOptions
+                        {
+                            DisplayCheckmark = true,
+                            PlaySound = true
+                        });
+                }
+                else
+                {
+                    Svc.Toasts.ShowQuest(localizer.Localize("Auto invite is turned off"),
+                        new QuestToastOptions
+                        {
+                            DisplayCheckmark = true,
+                            PlaySound = true
+                        });
+                }
+                Config.Save();
+            }
+            else if (timedRecruitment.TryProcessCommandTimedEnable(args))
+            {
+                //success
+            }
+            else if (Svc.Commands.Commands.TryGetValue("/xinvite", out var cmdInfo))
+            {
+                Svc.Chat.Print(cmdInfo.HelpMessage);
             }
         }
 
-        public char EasierProcessCIDDetour(nint a1, nint a2)
+        public void Log(string message)
         {
-            var ret = easierProcessCIDHook.Original(a1, a2);
+            if (!Config.PrintMessage)
+                return;
+            var msg = $"[Inviter] {message}";
+            Svc.Log.Info(msg);
+            Svc.Chat.Print(msg);
+        }
 
-            var CID = Marshal.ReadInt64(a2, 8);
-            var world_id = Marshal.ReadInt16(a2, 20);
-            var world = Data.GetExcelSheet<World>().GetRow((uint)world_id);
-            var name = StringFromNativeUtf8(a2 + 24);
-            Log($"{name}@{world.Name}:{CID}");
+        public void LogError(string message)
+        {
+            if (!Config.PrintError)
+                return;
+            var msg = $"[Inviter] {message}";
+            Svc.Log.Error(msg);
+            Svc.Chat.PrintError(msg);
+        }
+        private unsafe bool InInvitableInstance() => Svc.Condition[ConditionFlag.BoundByDuty56] && Svc.Data.GetExcelSheet<TerritoryType>().GetRowOrDefault(GameMain.Instance()->CurrentTerritoryTypeId)?.TerritoryIntendedUse.RowId is 41 or 47 or 48 or 52 or 53 or 61;
 
-            var playerNameKey = $"{name}@{world_id}";
-            name2CID.TryAdd(playerNameKey, CID);
+        public static string ConvertSpanToString(Span<byte> byteSpan)
+        {
+            int length = 0;
+            for (int i = 0; i < byteSpan.Length; i++)
+            {
+                if (byteSpan[i] == 0)
+                {
+                    break;
+                }
+                length++;
+            }
+            return Encoding.UTF8.GetString(byteSpan[..length]);
+        }
 
-            return ret;
+        private byte[] ToTerminatedBytes(string s)
+        {
+            var utf8 = Encoding.UTF8;
+            var bytes = new byte[utf8.GetByteCount(s) + 1];
+            utf8.GetBytes(s, 0, s.Length, bytes, 0);
+            bytes[^1] = 0;
+            return bytes;
         }
     }
 }

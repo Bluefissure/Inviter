@@ -21,6 +21,11 @@ namespace Inviter
             };
         }
 
+        public override void OnClose()
+        {
+            Inviter.Plugin.Config.Save();
+        }
+
         public override void Draw()
         {
             if (ImGui.CollapsingHeader(Inviter.Plugin.localizer.Localize("General Settings"), ImGuiTreeNodeFlags.DefaultOpen))

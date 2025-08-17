@@ -32,7 +32,7 @@ namespace Inviter
 
         public void Save()
         {
-            Inviter.Interface.SavePluginConfig(this);
+            Svc.PluginInterface.SavePluginConfig(this);
         }
     }
 }

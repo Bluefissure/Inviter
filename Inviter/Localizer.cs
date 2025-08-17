@@ -15,9 +15,7 @@ namespace Inviter
         }
         public string Localize(string message)
         {
-            if (message == null)
-                return message;
-            else if (Language == "zh")
+            if (Language == "zh")
                 return zh.TryGetValue(message, out string? value) ? value : message;
             else if (Language == "fr")
                 return fr.TryGetValue(message, out string? value) ? value : message;
