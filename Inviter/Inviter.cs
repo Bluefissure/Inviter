@@ -82,29 +82,9 @@ namespace Inviter
             if (Svc.ClientState.LocalPlayer == null || Svc.Condition[ConditionFlag.BetweenAreas] || Svc.Condition[ConditionFlag.BetweenAreas51])
                 return;
 
-            if (GroupManager.Instance()->GetGroup()->MemberCount >= 8)
-            {
-                Log("Skipping invite: party full.");
-                if (timedRecruitment.isRunning)
-                    timedRecruitment.FinishTimer();
-                return;
-            }
-
-            if (GroupManager.Instance()->GetGroup()->MemberCount > 0 && !GroupManager.Instance()->MainGroup.IsEntityIdPartyLeader(Svc.ClientState.LocalPlayer!.EntityId))
-            {
-                Log("Skipping invite: not party leader.");
-                return;
-            }
-
             if (!RaptureLogModule.Instance()->GetLogMessageDetail(messageIndex, out var sender, out var rawMessage, out _, out _, out _, out _))
             {
                 Log("Skipping invite: unable to get message detail.");
-                return;
-            }
-
-            if (Svc.Party.Any(p => p.ContentId == (long)contentId))
-            {
-                Log("Skipping invite: already in party.");
                 return;
             }
 
@@ -126,8 +106,29 @@ namespace Inviter
                     return;
                 }
             }
+
             if (matched)
             {
+                if (GroupManager.Instance()->GetGroup()->MemberCount >= 8)
+                {
+                    Log("Skipping invite: party full.");
+                    if (timedRecruitment.isRunning)
+                        timedRecruitment.FinishTimer();
+                    return;
+                }
+
+                if (GroupManager.Instance()->GetGroup()->MemberCount > 0 && !GroupManager.Instance()->MainGroup.IsEntityIdPartyLeader(Svc.ClientState.LocalPlayer!.EntityId))
+                {
+                    Log("Skipping invite: not party leader.");
+                    return;
+                }
+
+                if (Svc.Party.Any(p => p.ContentId == (long)contentId))
+                {
+                    Log("Skipping invite: already in party.");
+                    return;
+                }
+
                 if (SeString.Parse(sender.AsSpan()).Payloads.FirstOrDefault(p => p is PlayerPayload) is PlayerPayload playerPayload)
                 {
                     var tc64 = Environment.TickCount64;
@@ -151,7 +152,6 @@ namespace Inviter
                         Log($"Attempting to invite {playerPayload.PlayerName}");
                         if (InInvitableInstance())
                         {
-                            Log($"Inviting {playerPayload.PlayerName} to instanced party.");
                             Task.Run(() =>
                             {
                                 Task.Delay(Math.Max(0, Config.Delay));
@@ -160,7 +160,6 @@ namespace Inviter
                         }
                         else
                         {
-                            Log($"Inviting {playerPayload.PlayerName} to non-instanced party.");
                             Task.Run(() =>
                             {
                                 Task.Delay(Math.Max(0, Config.Delay));
