@@ -8,6 +8,7 @@ using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
@@ -16,7 +17,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using GroupManager = FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager;
 
 namespace Inviter
 {
@@ -30,7 +30,7 @@ namespace Inviter
         public ConfigurationWindow ConfigurationWindow;
 
         private long NextInviteAt = 0;
-        private Hook<RaptureLogModule.Delegates.AddMsgSourceEntry> MsgHook;
+        private readonly Hook<RaptureLogModule.Delegates.AddMsgSourceEntry> MsgHook;
 
         public unsafe Inviter(IDalamudPluginInterface PluginInterface)
         {
@@ -279,7 +279,7 @@ namespace Inviter
             return Encoding.UTF8.GetString(byteSpan[..length]);
         }
 
-        private byte[] ToTerminatedBytes(string s)
+        private static byte[] ToTerminatedBytes(string s)
         {
             var utf8 = Encoding.UTF8;
             var bytes = new byte[utf8.GetByteCount(s) + 1];
